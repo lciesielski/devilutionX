@@ -1,17 +1,7 @@
 name: Windows MSVC x64
 
 on:
-  push:
-    branches:
-      - master
-    paths-ignore:
-      - '*.md'
-      - 'docs/**'
-  pull_request:
-    types: [ opened, synchronize ]
-    paths-ignore:
-      - '*.md'
-      - 'docs/**'
+  workflow_dispatch: # This enables manual triggering of the workflow
 
 permissions:
   contents: write
