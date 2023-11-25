@@ -48,15 +48,15 @@ std::vector<std::unique_ptr<UiItemBase>> vecSelDlgItems;
 
 UiImageClx *SELHERO_DIALOG_HERO_IMG;
 
-void SelheroListFocus(int value);
-void SelheroListSelect(int value);
+void SelheroListFocus(size_t value);
+void SelheroListSelect(size_t value);
 void SelheroListEsc();
-void SelheroLoadFocus(int value);
-void SelheroLoadSelect(int value);
-void SelheroNameSelect(int value);
+void SelheroLoadFocus(size_t value);
+void SelheroLoadSelect(size_t value);
+void SelheroNameSelect(size_t value);
 void SelheroNameEsc();
-void SelheroClassSelectorFocus(int value);
-void SelheroClassSelectorSelect(int value);
+void SelheroClassSelectorFocus(size_t value);
+void SelheroClassSelectorSelect(size_t value);
 void SelheroClassSelectorEsc();
 const char *SelheroGenerateName(HeroClass heroClass);
 
@@ -118,12 +118,11 @@ bool SelHeroGetHeroInfo(_uiheroinfo *pInfo)
 	return true;
 }
 
-void SelheroListFocus(int value)
+void SelheroListFocus(size_t value)
 {
-	const auto index = static_cast<std::size_t>(value);
 	UiFlags baseFlags = UiFlags::AlignCenter | UiFlags::FontSize30;
-	if (selhero_SaveCount != 0 && index < selhero_SaveCount) {
-		memcpy(&selhero_heroInfo, &selhero_heros[index], sizeof(selhero_heroInfo));
+	if (selhero_SaveCount != 0 && value < selhero_SaveCount) {
+		memcpy(&selhero_heroInfo, &selhero_heros[value], sizeof(selhero_heroInfo));
 		SelheroSetStats();
 		SELLIST_DIALOG_DELETE_BUTTON->SetFlags(baseFlags | UiFlags::ColorUiGold);
 		selhero_isSavegame = true;
@@ -144,7 +143,7 @@ bool SelheroListDeleteYesNo()
 	return selhero_navigateYesNo;
 }
 
-void SelheroListSelect(int value)
+void SelheroListSelect(size_t value)
 {
 	const Point uiPosition = GetUIRectangle().position;
 
@@ -170,7 +169,7 @@ void SelheroListSelect(int value)
 		}
 		if (vecSelHeroDlgItems.size() > 4)
 			itemH = 26;
-		int itemY = 246 + (176 - vecSelHeroDlgItems.size() * itemH) / 2;
+		int itemY = static_cast<int>(246 + (176 - vecSelHeroDlgItems.size() * itemH) / 2);
 		vecSelDlgItems.push_back(std::make_unique<UiList>(vecSelHeroDlgItems, vecSelHeroDlgItems.size(), uiPosition.x + 264, (uiPosition.y + itemY), 320, itemH, UiFlags::AlignCenter | UiFlags::FontSize24 | UiFlags::ColorUiGold));
 
 		SDL_Rect rect2 = { (Sint16)(uiPosition.x + 279), (Sint16)(uiPosition.y + 429), 140, 35 };
@@ -221,7 +220,7 @@ void SelheroListEsc()
 	selhero_result = SELHERO_PREVIOUS;
 }
 
-void SelheroClassSelectorFocus(int value)
+void SelheroClassSelectorFocus(size_t value)
 {
 	const auto heroClass = static_cast<HeroClass>(vecSelHeroDlgItems[value]->m_value);
 
@@ -260,7 +259,7 @@ void AddSelHeroBackground()
 	    std::make_unique<UiImageClx>((*ArtBackground)[0], MakeSdlRect(0, GetUIRectangle().position.y, 0, 0), UiFlags::AlignCenter));
 }
 
-void SelheroClassSelectorSelect(int value)
+void SelheroClassSelectorSelect(size_t value)
 {
 	auto hClass = static_cast<HeroClass>(vecSelHeroDlgItems[value]->m_value);
 	if (gbIsSpawn && (hClass == HeroClass::Rogue || hClass == HeroClass::Sorcerer || (hClass == HeroClass::Bard && !gbBard))) {
@@ -306,7 +305,7 @@ void SelheroClassSelectorEsc()
 	SelheroListEsc();
 }
 
-void SelheroNameSelect(int /*value*/)
+void SelheroNameSelect(size_t /*value*/)
 {
 	// only check names in multiplayer, we don't care about them in single
 	if (selhero_isMultiPlayer && !UiValidPlayerName(selhero_heroInfo.name)) {
@@ -330,11 +329,11 @@ void SelheroNameEsc()
 	SelheroListSelect(selhero_SaveCount);
 }
 
-void SelheroLoadFocus(int value)
+void SelheroLoadFocus(size_t value)
 {
 }
 
-void SelheroLoadSelect(int value)
+void SelheroLoadSelect(size_t value)
 {
 	UiInitList_clear();
 	selhero_endMenu = true;
