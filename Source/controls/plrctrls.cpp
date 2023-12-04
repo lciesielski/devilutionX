@@ -2127,4 +2127,38 @@ void QuickCast(size_t slot)
 	LastMouseButtonAction = prevMouseButtonAction;
 }
 
+void plrctrls_move_plr_down()
+{
+	WalkInDir(MyPlayerId, AxisDirection { AxisDirectionX_NONE, AxisDirectionY_DOWN });
+}
+void plrctrls_move_plr_up()
+{
+	WalkInDir(MyPlayerId, AxisDirection { AxisDirectionX_NONE, AxisDirectionY_UP });
+}
+void plrctrls_move_plr_left()
+{
+	WalkInDir(MyPlayerId, AxisDirection { AxisDirectionX_LEFT, AxisDirectionY_NONE });
+}
+void plrctrls_move_plr_right()
+{
+	WalkInDir(MyPlayerId, AxisDirection { AxisDirectionX_RIGHT, AxisDirectionY_NONE });
+}
+
+void plrctrls_move_plr_down_left()
+{
+	WalkInDir(MyPlayerId, AxisDirection { AxisDirectionX_LEFT, AxisDirectionY_DOWN });
+}
+void plrctrls_move_plr_down_right()
+{
+	WalkInDir(MyPlayerId, AxisDirection { AxisDirectionX_RIGHT, AxisDirectionY_DOWN });
+}
+void plrctrls_move_plr_up_left()
+{
+	WalkInDir(MyPlayerId, AxisDirection { AxisDirectionX_LEFT, AxisDirectionY_UP });
+}
+void plrctrls_move_plr_up_right()
+{
+	WalkInDir(MyPlayerId, AxisDirection { AxisDirectionX_RIGHT, AxisDirectionY_UP });
+}
+
 } // namespace devilution
