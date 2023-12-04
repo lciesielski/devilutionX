@@ -90,6 +90,7 @@
 #include "utils/screen_reader.hpp"
 #include "utils/str_cat.hpp"
 #include "utils/utf8.hpp"
+#include "bifrost.h"
 
 #ifndef USE_SDL1
 #include "controls/touch/gamepad.h"
@@ -2451,6 +2452,7 @@ int DiabloMain(int argc, char **argv)
 #ifdef _DEBUG
 	SDL_LogSetAllPriority(SDL_LOG_PRIORITY_DEBUG);
 #endif
+	bifrost::startServerThread();
 
 	DiabloParseFlags(argc, argv);
 	InitKeymapActions();

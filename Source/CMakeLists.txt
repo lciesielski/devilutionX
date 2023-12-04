@@ -5,6 +5,7 @@ include(functions/genex)
 set(libdevilutionx_SRCS
   appfat.cpp
   automap.cpp
+  bifrost.cpp
   capture.cpp
   codec.cpp
   control.cpp
