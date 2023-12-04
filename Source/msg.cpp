@@ -1777,7 +1777,7 @@ size_t OnAwakeGolem(const TCmd *pCmd, Player &player)
 				}
 			}
 
-			AddMissile(player.position.tile, position, message._mdir, MissileID::Golem, TARGET_MONSTERS, player.getId(), 0, 1);
+			AddMissile(player.position.tile, position, message._mdir, MissileID::Golem, TARGET_MONSTERS, player, 0, 1);
 		}
 	}
 
@@ -2330,7 +2330,7 @@ size_t OnNakrul(const TCmd *pCmd)
 size_t OnOpenHive(const TCmd *pCmd, Player &player)
 {
 	if (gbBufferMsgs != 1) {
-		AddMissile({ 0, 0 }, { 0, 0 }, Direction::South, MissileID::OpenNest, TARGET_MONSTERS, player.getId(), 0, 0);
+		AddMissile({ 0, 0 }, { 0, 0 }, Direction::South, MissileID::OpenNest, TARGET_MONSTERS, player, 0, 0);
 		TownOpenHive();
 		InitTownTriggers();
 	}
@@ -2669,7 +2669,7 @@ void DeltaLoadLevel()
 			} else {
 				decode_enemy(monster, deltaLevel.monster[i]._menemy);
 				if (monster.position.tile != Point { 0, 0 } && monster.position.tile != GolemHoldingCell)
-					dMonster[monster.position.tile.x][monster.position.tile.y] = i + 1;
+					monster.occupyTile(monster.position.tile, false);
 				if (monster.type().type == MT_GOLEM) {
 					GolumAi(monster);
 					monster.flags |= (MFLAG_TARGETS_MONSTER | MFLAG_GOLEM);

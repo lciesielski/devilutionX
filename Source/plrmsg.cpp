@@ -40,7 +40,7 @@ std::array<PlayerMessage, 8> Messages;
 
 int CountLinesOfText(std::string_view text)
 {
-	return 1 + c_count(text, '\n');
+	return static_cast<int>(1 + c_count(text, '\n'));
 }
 
 PlayerMessage &GetNextMessage()
@@ -52,18 +52,10 @@ PlayerMessage &GetNextMessage()
 
 } // namespace
 
-void plrmsg_delay(bool delay)
+void DelayPlrMessages(uint32_t delayTime)
 {
-	static uint32_t plrmsgTicks;
-
-	if (delay) {
-		plrmsgTicks = -SDL_GetTicks();
-		return;
-	}
-
-	plrmsgTicks += SDL_GetTicks();
 	for (PlayerMessage &message : Messages)
-		message.time += plrmsgTicks;
+		message.time += delayTime;
 }
 
 void EventPlrMsg(std::string_view text, UiFlags style)

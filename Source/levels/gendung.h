@@ -158,8 +158,6 @@ extern Bitset2d<DMAXX, DMAXY> Protected;
 extern WorldTileRectangle SetPieceRoom;
 /** Specifies the active set quest piece in coordinate. */
 extern WorldTileRectangle SetPiece;
-/** Contains the contents of the single player quest DUN file. */
-extern std::unique_ptr<uint16_t[]> pSetPiece;
 extern OptionalOwnedClxSpriteList pSpecialCels;
 /** Specifies the tile definitions of the active dungeon type; (e.g. levels/l1data/l1.til). */
 extern DVL_API_FOR_TEST std::unique_ptr<MegaTile[]> pMegaTiles;
@@ -358,8 +356,10 @@ std::optional<Point> PlaceMiniSet(const Miniset &miniset, int tries = 199, bool 
 void PlaceDunTiles(const uint16_t *dunData, Point position, int floorId = 0);
 void DRLG_PlaceThemeRooms(int minSize, int maxSize, int floor, int freq, bool rndSize);
 void DRLG_HoldThemeRooms();
-void SetSetPieceRoom(WorldTilePosition position, int floorId);
-void FreeQuestSetPieces();
+/**
+ * @brief Returns ths size in tiles of the specified ".dun" Data
+ */
+WorldTileSize GetDunSize(const uint16_t *dunData);
 void DRLG_LPass3(int lv);
 
 /**

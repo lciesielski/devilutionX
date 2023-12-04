@@ -463,6 +463,13 @@ struct Monster { // note: missing field _mAFNum
 			offset += GetOffsetForWalking(animInfo, direction);
 		return offset;
 	}
+
+	/**
+	 * @brief Sets a tile/dMonster to be occupied by the monster
+	 * @param position tile to update
+	 * @param isMoving specifies whether the monster is moving or not (true/moving results in a negative index in dMonster)
+	 */
+	void occupyTile(Point position, bool isMoving) const;
 };
 
 extern size_t LevelMonsterTypeCount;
@@ -475,6 +482,11 @@ extern bool sgbSaveSoundOn;
 void PrepareUniqueMonst(Monster &monster, UniqueMonsterType monsterType, size_t miniontype, int bosspacksize, const UniqueMonsterData &uniqueMonsterData);
 void InitLevelMonsters();
 void GetLevelMTypes();
+size_t AddMonsterType(_monster_id type, placeflag placeflag);
+inline size_t AddMonsterType(UniqueMonsterType uniqueType, placeflag placeflag)
+{
+	return AddMonsterType(UniqueMonstersData[static_cast<size_t>(uniqueType)].mtype, placeflag);
+}
 void InitMonsterSND(CMonster &monsterType);
 void InitMonsterGFX(CMonster &monsterType, MonsterSpritesData &&spritesData = {});
 void InitAllMonsterGFX();

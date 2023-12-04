@@ -559,20 +559,18 @@ void LoadMapObjects(const char *path, Point start, WorldTileRectangle mapRange =
 
 	auto dunData = LoadFileInMem<uint16_t>(path);
 
-	int width = SDL_SwapLE16(dunData[0]);
-	int height = SDL_SwapLE16(dunData[1]);
+	WorldTileSize size = GetDunSize(dunData.get());
 
-	int layer2Offset = 2 + width * height;
+	int layer2Offset = 2 + size.width * size.height;
 
 	// The rest of the layers are at dPiece scale
-	width *= 2;
-	height *= 2;
+	size *= static_cast<WorldTileCoord>(2);
 
-	const uint16_t *objectLayer = &dunData[layer2Offset + width * height * 2];
+	const uint16_t *objectLayer = &dunData[layer2Offset + size.width * size.height * 2];
 
-	for (int j = 0; j < height; j++) {
-		for (int i = 0; i < width; i++) {
-			auto objectId = static_cast<uint8_t>(SDL_SwapLE16(objectLayer[j * width + i]));
+	for (WorldTileCoord j = 0; j < size.height; j++) {
+		for (WorldTileCoord i = 0; i < size.width; i++) {
+			auto objectId = static_cast<uint8_t>(SDL_SwapLE16(objectLayer[j * size.width + i]));
 			if (objectId != 0) {
 				Point mapPos = start + Displacement { i, j };
 				Object *mapObject = AddObject(ObjTypeConv[objectId], mapPos);
@@ -1510,7 +1508,7 @@ void UpdateCircle(Object &circle)
 			Quests[Q_BETRAYER]._qvar1 = 4;
 			NetSendCmdQuest(true, Quests[Q_BETRAYER]);
 		}
-		AddMissile(playerOnCircle->position.tile, { 35, 46 }, Direction::South, MissileID::Phasing, TARGET_BOTH, playerOnCircle->getId(), 0, 0);
+		AddMissile(playerOnCircle->position.tile, { 35, 46 }, Direction::South, MissileID::Phasing, TARGET_BOTH, *playerOnCircle, 0, 0);
 		if (playerOnCircle == MyPlayer) {
 			LastMouseButtonAction = MouseActionType::None;
 			sgbMouseDown = CLICK_NONE;
@@ -1853,7 +1851,7 @@ void OperateBook(Player &player, Object &book, bool sendmsg)
 
 		circle._oVar6 = 4;
 		ObjectAtPosition({ 35, 36 })._oVar5++;
-		AddMissile(player.position.tile, target, Direction::South, MissileID::Phasing, TARGET_BOTH, player.getId(), 0, 0);
+		AddMissile(player.position.tile, target, Direction::South, MissileID::Phasing, TARGET_BOTH, player, 0, 0);
 	}
 
 	book._oSelFlag = 0;
@@ -1894,7 +1892,7 @@ void OperateBook(Player &player, Object &book, bool sendmsg)
 		    player._pdir,
 		    MissileID::Guardian,
 		    TARGET_MONSTERS,
-		    player.getId(),
+		    player,
 		    0,
 		    0);
 	}
@@ -2383,7 +2381,7 @@ void OperateShrineMagical(const Player &player)
 	    player._pdir,
 	    MissileID::ManaShield,
 	    TARGET_MONSTERS,
-	    player.getId(),
+	    player,
 	    0,
 	    2 * leveltype);
 
@@ -2540,7 +2538,7 @@ void OperateShrineCryptic(Player &player)
 	    player._pdir,
 	    MissileID::Nova,
 	    TARGET_MONSTERS,
-	    player.getId(),
+	    player,
 	    0,
 	    2 * leveltype);
 
@@ -2632,7 +2630,7 @@ void OperateShrineDivine(Player &player, Point spawnPosition)
 
 void OperateShrineHoly(const Player &player)
 {
-	AddMissile(player.position.tile, { 0, 0 }, Direction::South, MissileID::Phasing, TARGET_MONSTERS, player.getId(), 0, 2 * leveltype);
+	AddMissile(player.position.tile, { 0, 0 }, Direction::South, MissileID::Phasing, TARGET_MONSTERS, player, 0, 2 * leveltype);
 
 	if (&player != MyPlayer)
 		return;
@@ -2902,7 +2900,7 @@ void OperateShrineTown(const Player &player, Point spawnPosition)
 	    player._pdir,
 	    MissileID::TownPortal,
 	    TARGET_MONSTERS,
-	    player.getId(),
+	    player,
 	    0,
 	    0);
 
@@ -3257,7 +3255,7 @@ bool OperateFountains(Player &player, Object &fountain)
 		    player._pdir,
 		    MissileID::Infravision,
 		    TARGET_MONSTERS,
-		    player.getId(),
+		    player,
 		    0,
 		    2 * leveltype);
 		applied = true;
@@ -3949,20 +3947,18 @@ void SetMapObjects(const uint16_t *dunData, int startx, int starty)
 
 	ClrAllObjects();
 
-	int width = SDL_SwapLE16(dunData[0]);
-	int height = SDL_SwapLE16(dunData[1]);
+	WorldTileSize size = GetDunSize(dunData);
 
-	int layer2Offset = 2 + width * height;
+	int layer2Offset = 2 + size.width * size.height;
 
 	// The rest of the layers are at dPiece scale
-	width *= 2;
-	height *= 2;
+	size *= static_cast<WorldTileCoord>(2);
 
-	const uint16_t *objectLayer = &dunData[layer2Offset + width * height * 2];
+	const uint16_t *objectLayer = &dunData[layer2Offset + size.width * size.height * 2];
 
-	for (int j = 0; j < height; j++) {
-		for (int i = 0; i < width; i++) {
-			auto objectId = static_cast<uint8_t>(SDL_SwapLE16(objectLayer[j * width + i]));
+	for (WorldTileCoord j = 0; j < size.height; j++) {
+		for (WorldTileCoord i = 0; i < size.width; i++) {
+			auto objectId = static_cast<uint8_t>(SDL_SwapLE16(objectLayer[j * size.width + i]));
 			if (objectId != 0) {
 				const ObjectData &objectData = AllObjects[ObjTypeConv[objectId]];
 				filesWidths[objectData.ofindex] = objectData.animWidth;
@@ -3972,9 +3968,9 @@ void SetMapObjects(const uint16_t *dunData, int startx, int starty)
 
 	LoadLevelObjects(filesWidths);
 
-	for (int j = 0; j < height; j++) {
-		for (int i = 0; i < width; i++) {
-			auto objectId = static_cast<uint8_t>(SDL_SwapLE16(objectLayer[j * width + i]));
+	for (WorldTileCoord j = 0; j < size.height; j++) {
+		for (WorldTileCoord i = 0; i < size.width; i++) {
+			auto objectId = static_cast<uint8_t>(SDL_SwapLE16(objectLayer[j * size.width + i]));
 			if (objectId != 0) {
 				AddObject(ObjTypeConv[objectId], { startx + 16 + i, starty + 16 + j });
 			}

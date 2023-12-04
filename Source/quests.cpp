@@ -147,7 +147,7 @@ void DrawWarLord(Point position)
 {
 	auto dunData = LoadFileInMem<uint16_t>("levels\\l4data\\warlord2.dun");
 
-	SetPiece = { position, WorldTileSize(SDL_SwapLE16(dunData[0]), SDL_SwapLE16(dunData[1])) };
+	SetPiece = { position, GetDunSize(dunData.get()) };
 
 	PlaceDunTiles(dunData.get(), position, 6);
 }
@@ -156,7 +156,7 @@ void DrawSChamber(quest_id q, Point position)
 {
 	auto dunData = LoadFileInMem<uint16_t>("levels\\l2data\\bonestr1.dun");
 
-	SetPiece = { position, WorldTileSize(SDL_SwapLE16(dunData[0]), SDL_SwapLE16(dunData[1])) };
+	SetPiece = { position, GetDunSize(dunData.get()) };
 
 	PlaceDunTiles(dunData.get(), position, 3);
 
@@ -167,16 +167,15 @@ void DrawLTBanner(Point position)
 {
 	auto dunData = LoadFileInMem<uint16_t>("levels\\l1data\\banner1.dun");
 
-	int width = SDL_SwapLE16(dunData[0]);
-	int height = SDL_SwapLE16(dunData[1]);
+	WorldTileSize size = GetDunSize(dunData.get());
 
-	SetPiece = { position, WorldTileSize(SDL_SwapLE16(dunData[0]), SDL_SwapLE16(dunData[1])) };
+	SetPiece = { position, size };
 
 	const uint16_t *tileLayer = &dunData[2];
 
-	for (int j = 0; j < height; j++) {
-		for (int i = 0; i < width; i++) {
-			auto tileId = static_cast<uint8_t>(SDL_SwapLE16(tileLayer[j * width + i]));
+	for (WorldTileCoord j = 0; j < size.height; j++) {
+		for (WorldTileCoord i = 0; i < size.width; i++) {
+			auto tileId = static_cast<uint8_t>(SDL_SwapLE16(tileLayer[j * size.width + i]));
 			if (tileId != 0) {
 				pdungeon[position.x + i][position.y + j] = tileId;
 			}
@@ -197,7 +196,7 @@ void DrawBlood(Point position)
 {
 	auto dunData = LoadFileInMem<uint16_t>("levels\\l2data\\blood2.dun");
 
-	SetPiece = { position, WorldTileSize(SDL_SwapLE16(dunData[0]), SDL_SwapLE16(dunData[1])) };
+	SetPiece = { position, GetDunSize(dunData.get()) };
 
 	PlaceDunTiles(dunData.get(), position, 0);
 }
@@ -345,7 +344,7 @@ void CheckQuests()
 	    && (quest._qactive == QUEST_ACTIVE || quest._qactive == QUEST_DONE)
 	    && (quest._qvar2 == 0 || quest._qvar2 == 2)) {
 		// Spawn a portal at the quest trigger location
-		AddMissile(quest.position, quest.position, Direction::South, MissileID::RedPortal, TARGET_MONSTERS, MyPlayerId, 0, 0);
+		AddMissile(quest.position, quest.position, Direction::South, MissileID::RedPortal, TARGET_MONSTERS, *MyPlayer, 0, 0);
 		quest._qvar2 = 1;
 		if (quest._qactive == QUEST_ACTIVE && quest._qvar1 == 2) {
 			quest._qvar1 = 3;
@@ -357,7 +356,7 @@ void CheckQuests()
 	    && setlvlnum == SL_VILEBETRAYER
 	    && quest._qvar2 == 4) {
 		Point portalLocation { 35, 32 };
-		AddMissile(portalLocation, portalLocation, Direction::South, MissileID::RedPortal, TARGET_MONSTERS, MyPlayerId, 0, 0);
+		AddMissile(portalLocation, portalLocation, Direction::South, MissileID::RedPortal, TARGET_MONSTERS, *MyPlayer, 0, 0);
 		quest._qvar2 = 3;
 	}
 
@@ -462,7 +461,7 @@ void CheckQuestKill(const Monster &monster, bool sendmsg)
 		} else {
 			InitVPTriggers();
 			betrayerQuest._qvar2 = 4;
-			AddMissile({ 35, 32 }, { 35, 32 }, Direction::South, MissileID::RedPortal, TARGET_MONSTERS, MyPlayerId, 0, 0);
+			AddMissile({ 35, 32 }, { 35, 32 }, Direction::South, MissileID::RedPortal, TARGET_MONSTERS, myPlayer, 0, 0);
 		}
 		if (sendmsg) {
 			NetSendCmdQuest(true, betrayerQuest);

@@ -692,7 +692,7 @@ bool GuardianTryFireAt(Missile &missile, Point target)
 	return true;
 }
 
-bool GrowWall(int playerId, Point position, Point target, MissileID type, int spellLevel, int damage)
+bool GrowWall(int id, Point position, Point target, MissileID type, int spellLevel, int damage)
 {
 	int dp = dPiece[position.x][position.y];
 	assert(dp <= MAXTILES && dp >= 0);
@@ -701,7 +701,7 @@ bool GrowWall(int playerId, Point position, Point target, MissileID type, int sp
 		return false;
 	}
 
-	AddMissile(position, position, Players[playerId]._pdir, type, TARGET_BOTH, playerId, damage, spellLevel);
+	AddMissile(position, position, Direction::South, type, TARGET_BOTH, id, damage, spellLevel);
 	return true;
 }
 
@@ -3650,7 +3650,7 @@ void ProcessTeleport(Missile &missile)
 	player.position.old = player.position.tile;
 	PlrDoTrans(player.position.tile);
 	missile.var1 = 1;
-	dPlayer[player.position.tile.x][player.position.tile.y] = id + 1;
+	player.occupyTile(player.position.tile, false);
 	if (leveltype != DTYPE_TOWN) {
 		ChangeLightXY(player.lightId, player.position.tile);
 		ChangeVisionXY(player.getId(), player.position.tile);
@@ -3730,7 +3730,7 @@ void ProcessRhino(Missile &missile)
 	monster.position.future = newPos;
 	monster.position.old = newPos;
 	monster.position.tile = newPos;
-	dMonster[newPos.x][newPos.y] = -(monst + 1);
+	monster.occupyTile(newPos, true);
 	if (monster.isUnique())
 		ChangeLightXY(missile._mlid, newPos);
 	MoveMissilePos(missile);
