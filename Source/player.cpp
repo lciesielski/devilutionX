@@ -50,7 +50,7 @@
 
 namespace devilution {
 
-size_t MyPlayerId;
+uint8_t MyPlayerId;
 Player *MyPlayer;
 std::vector<Player> Players;
 Player *InspectPlayer;
@@ -83,7 +83,6 @@ void WalkNorthwards(Player &player, const DirectionSettings &walkParams)
 
 void WalkSouthwards(Player &player, const DirectionSettings & /*walkParams*/)
 {
-	const size_t playerId = player.getId();
 	player.position.temp = player.position.tile;
 	player.position.tile = player.position.future; // Move player to the next tile to maintain correct render order
 	player.occupyTile(player.position.temp, true);
@@ -97,7 +96,6 @@ void WalkSideways(Player &player, const DirectionSettings &walkParams)
 {
 	Point const nextPosition = player.position.tile + walkParams.map;
 
-	const size_t playerId = player.getId();
 	player.occupyTile(player.position.tile, true);
 	player.occupyTile(player.position.future, false);
 
@@ -798,7 +796,7 @@ bool PlrHitPlr(Player &attacker, Player &target)
 		RedrawComponent(PanelDrawComponent::Health);
 	}
 	if (&attacker == MyPlayer) {
-		NetSendCmdDamage(true, target.getId(), skdam, DamageType::Physical);
+		NetSendCmdDamage(true, target, skdam, DamageType::Physical);
 	}
 	StartPlrHit(target, skdam, false);
 
@@ -1343,7 +1341,7 @@ void CheckNewPath(Player &player, bool pmWillBeCalled)
 				x = std::abs(player.position.tile.x - item->position.x);
 				y = std::abs(player.position.tile.y - item->position.y);
 				if (x <= 1 && y <= 1 && pcurs == CURSOR_HAND && !item->_iRequest) {
-					NetSendCmdGItem(true, CMD_REQUESTGITEM, player.getId(), targetId);
+					NetSendCmdGItem(true, CMD_REQUESTGITEM, player, targetId);
 					item->_iRequest = true;
 				}
 			}
@@ -1353,7 +1351,7 @@ void CheckNewPath(Player &player, bool pmWillBeCalled)
 				x = std::abs(player.position.tile.x - item->position.x);
 				y = std::abs(player.position.tile.y - item->position.y);
 				if (x <= 1 && y <= 1 && pcurs == CURSOR_HAND) {
-					NetSendCmdGItem(true, CMD_REQUESTAGITEM, player.getId(), targetId);
+					NetSendCmdGItem(true, CMD_REQUESTAGITEM, player, targetId);
 				}
 			}
 			break;
@@ -1614,7 +1612,7 @@ void Player::RemoveInvItem(int iv, bool calcScrolls)
 		for (size_t i = 0; i < InventoryGridCells; i++) {
 			int8_t itemIndex = InvGrid[i];
 			if (std::abs(itemIndex) - 1 == iv) {
-				NetSendCmdParam1(false, CMD_DELINVITEMS, i);
+				NetSendCmdParam1(false, CMD_DELINVITEMS, static_cast<uint16_t>(i));
 				break;
 			}
 		}
@@ -1662,9 +1660,9 @@ void Player::RemoveSpdBarItem(int iv)
 	RedrawEverything();
 }
 
-[[nodiscard]] size_t Player::getId() const
+[[nodiscard]] uint8_t Player::getId() const
 {
-	return std::distance<const Player *>(&Players[0], this);
+	return static_cast<uint8_t>(std::distance<const Player *>(&Players[0], this));
 }
 
 int Player::GetBaseAttributeValue(CharacterAttribute attribute) const
@@ -2072,17 +2070,18 @@ int32_t Player::calculateBaseMana() const
 
 void Player::occupyTile(Point position, bool isMoving) const
 {
-	int16_t id = static_cast<int16_t>(this->getId() + 1);
+	int16_t id = this->getId();
+	id += 1;
 	dPlayer[position.x][position.y] = isMoving ? -id : id;
 }
 
-Player *PlayerAtPosition(Point position)
+Player *PlayerAtPosition(Point position, bool ignoreMovingPlayers /*= false*/)
 {
 	if (!InDungeonBounds(position))
 		return nullptr;
 
 	auto playerIndex = dPlayer[position.x][position.y];
-	if (playerIndex == 0)
+	if (playerIndex == 0 || (ignoreMovingPlayers && playerIndex < 0))
 		return nullptr;
 
 	return &Players[std::abs(playerIndex) - 1];
@@ -3080,12 +3079,9 @@ bool PosOkPlayer(const Player &player, Point position)
 		return false;
 	if (!IsTileWalkable(position))
 		return false;
-	if (dPlayer[position.x][position.y] != 0) {
-		auto &otherPlayer = Players[std::abs(dPlayer[position.x][position.y]) - 1];
-		if (&otherPlayer != &player && otherPlayer._pHitPoints != 0) {
-			return false;
-		}
-	}
+	Player *otherPlayer = PlayerAtPosition(position);
+	if (otherPlayer != nullptr && otherPlayer != &player && otherPlayer->_pHitPoints != 0)
+		return false;
 
 	if (dMonster[position.x][position.y] != 0) {
 		if (leveltype == DTYPE_TOWN) {
