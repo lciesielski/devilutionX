@@ -4482,6 +4482,10 @@ void CreateSpellBook(Point position, SpellID ispell, bool sendmsg, bool delta)
 		}
 	}
 
+	if (ispell == SpellID::Apocalypse) {
+		lvl = GetSpellBookLevel(ispell) + 1;
+	}
+
 	_item_indexes idx = RndTypeItems(ItemType::Misc, IMISC_BOOK, lvl);
 	if (ActiveItemCount >= MAXITEMS)
 		return;
