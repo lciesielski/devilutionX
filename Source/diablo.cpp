@@ -2452,7 +2452,7 @@ int DiabloMain(int argc, char **argv)
 #ifdef _DEBUG
 	SDL_LogSetAllPriority(SDL_LOG_PRIORITY_DEBUG);
 #endif
-	bifrost::startServerThread();
+	//bifrost::startServerThread();
 
 	DiabloParseFlags(argc, argv);
 	InitKeymapActions();

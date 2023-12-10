@@ -5,6 +5,7 @@
 #include "quests.h"
 #include "utils/display.h"
 #include "utils/ui_fwd.h"
+#include "options.h"
 
 namespace devilution {
 
@@ -75,6 +76,15 @@ void InitializeVirtualGamepad()
 		directionPadSize = round(dpi);
 		padButtonSize = round(0.3 * dpi);
 		padButtonSpacing = round(0.1 * dpi);
+
+		if (*sgOptions.Graphics.adjustControlsForTablets)
+		{
+			inputMargin = round(1.1 * dpi);
+			menuButtonWidth = round(0.4 * dpi);
+			directionPadSize = round(1.5 * dpi);
+			padButtonSize = round(0.5 * dpi);
+			padButtonSpacing = round(0.1 * dpi);
+		}
 	}
 
 	int menuPanelTopMargin = 30;

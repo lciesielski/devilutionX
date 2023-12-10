@@ -1,3 +1,4 @@
+/*
 #include "bifrost.h"
 #include "player.h"
 
@@ -87,3 +88,4 @@ void bifrost::startServerThread()
 }
 
 } // namespace devilution
+*/

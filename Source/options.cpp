@@ -992,6 +992,7 @@ GraphicsOptions::GraphicsOptions()
     , hardwareCursorMaxSize("Hardware Cursor Maximum Size", OptionEntryFlags::CantChangeInGame | OptionEntryFlags::RecreateUI | (HardwareCursorSupported() ? OptionEntryFlags::None : OptionEntryFlags::Invisible), N_("Hardware Cursor Maximum Size"), N_("Maximum width / height for the hardware cursor. Larger cursors fall back to software."), 128, { 0, 64, 128, 256, 512 })
 #endif
     , limitFPS("FPS Limiter", OptionEntryFlags::None, N_("FPS Limiter"), N_("FPS is limited to avoid high CPU load. Limit considers refresh rate."), true)
+    , adjustControlsForTablets("Adjust controls UI for tablets", OptionEntryFlags::CantChangeInGame, N_("Adjust controls UI for tablets"), N_("Adjusts controls UI for tablets."), false)
     , showFPS("Show FPS", OptionEntryFlags::None, N_("Show FPS"), N_("Displays the FPS in the upper left corner of the screen."), false)
 {
 	resolution.SetValueChangedCallback(ResizeWindow);
@@ -1027,6 +1028,7 @@ std::vector<OptionEntryBase *> GraphicsOptions::GetEntries()
 		&gammaCorrection,
 		&zoom,
 		&limitFPS,
+		&adjustControlsForTablets,
 		&showFPS,
 		&colorCycling,
 		&alternateNestArt,

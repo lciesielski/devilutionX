@@ -514,6 +514,8 @@ struct GraphicsOptions : OptionCategoryBase {
 #endif
 	/** @brief Enable FPS Limiter. */
 	OptionEntryBoolean limitFPS;
+	/** @brief Adjusts controls UI for tablets. */
+	OptionEntryBoolean adjustControlsForTablets;
 	/** @brief Show FPS, even without the -f command line flag. */
 	OptionEntryBoolean showFPS;
 };

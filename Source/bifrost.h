@@ -1,4 +1,5 @@
 // bifrost.h
+/*
 #include <iostream>
 #include <winsock2.h>
 #include <thread>
@@ -12,3 +13,4 @@ public:
 };
 
 } // namespace devilution
+*/
