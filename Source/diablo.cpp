@@ -151,6 +151,16 @@ extern void plrctrls_after_check_curs_move();
 extern void plrctrls_every_frame();
 extern void plrctrls_after_game_logic();
 
+extern void plrctrls_move_plr_down();
+extern void plrctrls_move_plr_up();
+extern void plrctrls_move_plr_left();
+extern void plrctrls_move_plr_right();
+
+extern void plrctrls_move_plr_down_left();
+extern void plrctrls_move_plr_down_right();
+extern void plrctrls_move_plr_up_left();
+extern void plrctrls_move_plr_up_right();
+
 namespace {
 
 char gszVersionNumber[64] = "internal version unknown";
@@ -1954,6 +1964,95 @@ void InitKeymapActions()
 	    [] {
 		    ToggleChatLog();
 	    });
+	
+	sgOptions.Keymapper.AddAction(
+	    "NumMoveDownLeft",
+	    N_("NumMoveDownLeft"),
+	    N_("Moves the player character down left."),
+	    SDLK_KP_1,
+	    plrctrls_move_plr_down_left,
+	    nullptr,
+	    CanPlayerTakeAction);
+	sgOptions.Keymapper.AddAction(
+	    "NumMoveDown",
+	    N_("NumMoveDown"),
+	    N_("Moves the player character down."),
+	    SDLK_KP_2,
+	    plrctrls_move_plr_down,
+	    nullptr,
+	    CanPlayerTakeAction);
+	sgOptions.Keymapper.AddAction(
+	    "NumMoveDownRight",
+	    N_("NumMoveDownRight"),
+	    N_("Moves the player character down right."),
+	    SDLK_KP_3,
+	    plrctrls_move_plr_down_right,
+	    nullptr,
+	    CanPlayerTakeAction);
+	sgOptions.Keymapper.AddAction(
+	    "NumMoveLeft",
+	    N_("NumMoveLeft"),
+	    N_("Moves the player character left."),
+	    SDLK_KP_4,
+	    plrctrls_move_plr_left,
+	    nullptr,
+	    CanPlayerTakeAction);
+	sgOptions.Keymapper.AddAction(
+	    "NumMoveRight",
+	    N_("NumMoveRight"),
+	    N_("Moves the player character right."),
+	    SDLK_KP_6,
+	    plrctrls_move_plr_right,
+	    nullptr,
+	    CanPlayerTakeAction);
+	sgOptions.Keymapper.AddAction(
+	    "NumMoveUpLeft",
+	    N_("NumMoveUpLeft"),
+	    N_("Moves the player character up left."),
+	    SDLK_KP_7,
+	    plrctrls_move_plr_up_left,
+	    nullptr,
+	    CanPlayerTakeAction);
+	sgOptions.Keymapper.AddAction(
+	    "NumMoveUp",
+	    N_("NumMoveUp"),
+	    N_("Moves the player character up."),
+	    SDLK_KP_8,
+	    plrctrls_move_plr_up,
+	    nullptr,
+	    CanPlayerTakeAction);
+	sgOptions.Keymapper.AddAction(
+	    "NumMoveUpRight",
+	    N_("NumMoveUpRight"),
+	    N_("Moves the player character up right."),
+	    SDLK_KP_9,
+	    plrctrls_move_plr_up_right,
+	    nullptr,
+	    CanPlayerTakeAction);
+
+	sgOptions.Keymapper.AddAction(
+	    "NumPrimaryAction",
+	    N_("NumPrimaryAction"),
+	    N_("Performs primary action."),
+	    SDLK_KP_5,
+	    [] {
+		    ControllerActionHeld = GameActionType_PRIMARY_ACTION;
+		    LastMouseButtonAction = MouseActionType::None;
+		    PerformPrimaryAction();
+	    },
+	    [] {
+		    ControllerActionHeld = GameActionType_NONE;
+		    LastMouseButtonAction = MouseActionType::None;
+	    },
+	    CanPlayerTakeAction);
+	sgOptions.Keymapper.AddAction(
+	    "NumSecondaryAction",
+	    N_("NumSecondaryAction"),
+	    N_("Performs secondary action."),
+	    SDLK_KP_0,
+	    PerformSecondaryAction,
+	    nullptr,
+	    CanPlayerTakeAction);
 #ifdef _DEBUG
 	sgOptions.Keymapper.AddAction(
 	    "OpenConsole",
