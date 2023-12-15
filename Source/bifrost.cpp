@@ -12,6 +12,8 @@ void bifrost::startServer()
 	struct sockaddr_in address;
 	int addrlen = sizeof(address);
 
+	DWORD processId = GetCurrentProcessId();
+
 	// Initialize Winsock
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
 		std::cerr << "Winsock initialization failed." << std::endl;
@@ -30,7 +32,10 @@ void bifrost::startServer()
 	address.sin_port = htons(PORT);
 
 	// Bind the socket
+	//TODO: Increment socket for every running process
 	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) == SOCKET_ERROR) {
+		//Ghetto MessageBox to debug if socket binding failed
+		//MessageBox(NULL, "Hello, this is a message box!", "MessageBox Example", MB_OK);
 		std::cerr << "Bind failed with error: " << WSAGetLastError() << std::endl;
 		closesocket(server_fd);
 		WSACleanup();
@@ -60,16 +65,17 @@ void bifrost::startServer()
 		if (&myPlayer != nullptr) {
 			response = "{\n";
 			response += "\"experience\": " + std::to_string(myPlayer._pExperience) + ",\n";
-
 			response += "\"life\": " + std::to_string(myPlayer._pHitPoints >> 6) + ",\n";
 			response += "\"mana\": " + std::to_string(myPlayer._pMana >> 6) + "\n";
-
+			response += "\"dungeonLevel\": " + std::to_string(myPlayer.plrlevel) + "\n";
 			response += "\"position-x\": " + std::to_string(myPlayer.position.tile.x) + ",\n";
 			response += "\"position-y\": " + std::to_string(myPlayer.position.tile.y) + ",\n";
-
+			response += "\"processId\": " + std::to_string(processId) + "\n";
 			response += "}\n";
 		} else {
-			response = "{ \"error\": \"Player instance not set\" }\n";
+			response = "{\n";
+			response += "\"processId\": " + std::to_string(processId) + "\n";
+			response += "}\n";
 		}
 
 		// Set Content-Type to application/json
