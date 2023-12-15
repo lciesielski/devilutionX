@@ -1413,7 +1413,7 @@ bool IsStickMovementSignificant()
 ControlTypes GetInputTypeFromEvent(const SDL_Event &event)
 {
 	if (IsAnyOf(event.type, SDL_KEYDOWN, SDL_KEYUP))
-		return ControlTypes::KeyboardAndMouse;
+		return ControlTypes::VirtualGamepad;
 #ifdef USE_SDL1
 	if (IsAnyOf(event.type, SDL_MOUSEBUTTONDOWN, SDL_MOUSEBUTTONUP, SDL_MOUSEMOTION))
 		return ControlTypes::KeyboardAndMouse;

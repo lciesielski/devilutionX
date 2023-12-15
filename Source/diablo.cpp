@@ -1949,6 +1949,30 @@ void InitKeymapActions()
 	    plrctrls_move_plr_up_right,
 	    nullptr,
 	    CanPlayerTakeAction);
+
+	sgOptions.Keymapper.AddAction(
+	    "NumPrimaryAction",
+	    N_("NumPrimaryAction"),
+	    N_("Performs primary action."),
+	    SDLK_KP_5,
+	    [] {
+		    ControllerActionHeld = GameActionType_PRIMARY_ACTION;
+		    LastMouseButtonAction = MouseActionType::None;
+		    PerformPrimaryAction();
+	    },
+	    [] {
+		    ControllerActionHeld = GameActionType_NONE;
+		    LastMouseButtonAction = MouseActionType::None;
+	    },
+	    CanPlayerTakeAction);
+	sgOptions.Keymapper.AddAction(
+	    "NumSecondaryAction",
+	    N_("NumSecondaryAction"),
+	    N_("Performs secondary action."),
+	    SDLK_KP_0,
+	    PerformSecondaryAction,
+	    nullptr,
+	    CanPlayerTakeAction);
 #ifdef _DEBUG
 	sgOptions.Keymapper.AddAction(
 	    "OpenConsole",
