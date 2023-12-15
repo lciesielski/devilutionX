@@ -60,8 +60,13 @@ void bifrost::startServer()
 		if (&myPlayer != nullptr) {
 			response = "{\n";
 			response += "\"experience\": " + std::to_string(myPlayer._pExperience) + ",\n";
+
 			response += "\"life\": " + std::to_string(myPlayer._pHitPoints >> 6) + ",\n";
 			response += "\"mana\": " + std::to_string(myPlayer._pMana >> 6) + "\n";
+
+			response += "\"position-x\": " + std::to_string(myPlayer.position.tile.x) + ",\n";
+			response += "\"position-y\": " + std::to_string(myPlayer.position.tile.y) + ",\n";
+
 			response += "}\n";
 		} else {
 			response = "{ \"error\": \"Player instance not set\" }\n";
