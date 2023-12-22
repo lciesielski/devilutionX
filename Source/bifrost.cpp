@@ -66,10 +66,11 @@ void bifrost::startServer()
 			response = "{\n";
 			response += "\"experience\": " + std::to_string(myPlayer._pExperience) + ",\n";
 			response += "\"life\": " + std::to_string(myPlayer._pHitPoints >> 6) + ",\n";
-			response += "\"mana\": " + std::to_string(myPlayer._pMana >> 6) + "\n";
-			response += "\"dungeonLevel\": " + std::to_string(myPlayer.plrlevel) + "\n";
+			response += "\"mana\": " + std::to_string(myPlayer._pMana >> 6) + ",\n";
+			response += "\"dungeonLevel\": " + std::to_string(myPlayer.plrlevel) + ",\n";
 			response += "\"position-x\": " + std::to_string(myPlayer.position.tile.x) + ",\n";
 			response += "\"position-y\": " + std::to_string(myPlayer.position.tile.y) + ",\n";
+			response += "\"pauseMode\": " + std::to_string(PauseMode) + ",\n";
 			response += "\"processId\": " + std::to_string(processId) + "\n";
 			response += "}\n";
 		} else {
