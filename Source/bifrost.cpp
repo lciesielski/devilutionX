@@ -3,7 +3,7 @@
 
 namespace devilution {
 
-const int PORT = 33005;
+const int START_PORT = 33005;
 
 void bifrost::startServer()
 {
@@ -11,6 +11,7 @@ void bifrost::startServer()
 	SOCKET server_fd;
 	struct sockaddr_in address;
 	int addrlen = sizeof(address);
+	int currentPort = START_PORT;
 
 	DWORD processId = GetCurrentProcessId();
 
@@ -29,18 +30,24 @@ void bifrost::startServer()
 
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
-	address.sin_port = htons(PORT);
 
-	// Bind the socket
-	//TODO: Increment socket for every running process
-	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) == SOCKET_ERROR) {
-		//Ghetto MessageBox to debug if socket binding failed
-		//MessageBox(NULL, "Hello, this is a message box!", "MessageBox Example", MB_OK);
-		std::cerr << "Bind failed with error: " << WSAGetLastError() << std::endl;
-		closesocket(server_fd);
-		WSACleanup();
-		return;
-	}
+	bool bound = false;
+	do {
+		address.sin_port = htons(currentPort);
+
+		// Try to bind the socket
+		if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) == SOCKET_ERROR) {
+			// Ghetto MessageBox to debug if socket binding failed
+			//MessageBox(NULL, "Hello, this is a message box!", "MessageBox Example", MB_OK);
+			std::cerr << "Bind failed on port " << currentPort << " with error: " << WSAGetLastError() << std::endl;
+			currentPort++; // Increment the port number
+		} else {
+			//std::string msg = "Successfully bound to port " + std::to_string(currentPort);
+			//MessageBox(NULL, msg.c_str(), "MessageBox Example", MB_OK);
+			std::cout << "Successfully bound to port " << currentPort << std::endl;
+			bound = true;
+		}
+	} while (!bound);
 
 	if (listen(server_fd, 3) == SOCKET_ERROR) {
 		std::cerr << "Listen failed with error: " << WSAGetLastError() << std::endl;
