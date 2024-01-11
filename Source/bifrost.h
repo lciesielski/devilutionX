@@ -9,6 +9,10 @@ class bifrost {
 public:
 	static void startServer(); // Declare the static method to start the server
 	static void startServerThread();
+
+private:
+	static std::string handleDataBuffer();
+	static std::string getLvlDownPosition();
 };
 
 } // namespace devilution

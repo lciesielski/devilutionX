@@ -1,9 +1,11 @@
 #include "bifrost.h"
 #include "player.h"
+#include <levels/trigs.h>
 
 namespace devilution {
 
 const int START_PORT = 33005;
+DWORD processId = GetCurrentProcessId();
 
 void bifrost::startServer()
 {
@@ -12,8 +14,6 @@ void bifrost::startServer()
 	struct sockaddr_in address;
 	int addrlen = sizeof(address);
 	int currentPort = START_PORT;
-
-	DWORD processId = GetCurrentProcessId();
 
 	// Initialize Winsock
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
@@ -63,27 +63,17 @@ void bifrost::startServer()
 			continue; // Continue listening for new connections even if accept fails
 		}
 
-		char buffer[65536] = { 0 };
-		recv(new_socket, buffer, 65536, 0);
+		char buffer[255] = { 0 };
+		recv(new_socket, buffer, 255, 0);
 
 		std::string response;
 
-		const Player &myPlayer = *MyPlayer;
-		if (&myPlayer != nullptr) {
-			response = "{\n";
-			response += "\"experience\": " + std::to_string(myPlayer._pExperience) + ",\n";
-			response += "\"life\": " + std::to_string(myPlayer._pHitPoints >> 6) + ",\n";
-			response += "\"mana\": " + std::to_string(myPlayer._pMana >> 6) + ",\n";
-			response += "\"dungeonLevel\": " + std::to_string(myPlayer.plrlevel) + ",\n";
-			response += "\"position-x\": " + std::to_string(myPlayer.position.tile.x) + ",\n";
-			response += "\"position-y\": " + std::to_string(myPlayer.position.tile.y) + ",\n";
-			response += "\"pauseMode\": " + std::to_string(PauseMode) + ",\n";
-			response += "\"processId\": " + std::to_string(processId) + "\n";
-			response += "}\n";
+		if (strcmp(buffer, "_DATA_") == 0) {
+			response = handleDataBuffer();
+		} else if (strcmp(buffer, "_POSITIONS_") == 0) {
+			response = "{}";
 		} else {
-			response = "{\n";
-			response += "\"processId\": " + std::to_string(processId) + "\n";
-			response += "}\n";
+			response = "{}";
 		}
 
 		// Set Content-Type to application/json
@@ -103,6 +93,44 @@ void bifrost::startServerThread()
 {
 	std::thread serverThread(startServer);
 	serverThread.detach();
+}
+
+std::string bifrost::handleDataBuffer()
+{
+	const Player &myPlayer = *MyPlayer;
+	std::string response = "{\n";
+	if (&myPlayer != nullptr) {
+		response += "\"experience\": " + std::to_string(myPlayer._pExperience) + ",\n";
+		response += "\"life\": " + std::to_string(myPlayer._pHitPoints >> 6) + ",\n";
+		response += "\"mana\": " + std::to_string(myPlayer._pMana >> 6) + ",\n";
+		response += "\"dungeonLevel\": " + std::to_string(myPlayer.plrlevel) + ",\n";
+		response += "\"position-x\": " + std::to_string(myPlayer.position.tile.x) + ",\n";
+		response += "\"position-y\": " + std::to_string(myPlayer.position.tile.y) + ",\n";
+
+		response += getLvlDownPosition();
+
+		response += "\"pauseMode\": " + std::to_string(PauseMode) + ",\n";
+		response += "\"processId\": " + std::to_string(processId) + "\n";
+	} else {
+		response += "\"processId\": " + std::to_string(processId) + "\n";
+	}
+
+	response += "}\n";
+	return response;
+}
+
+std::string bifrost::getLvlDownPosition()
+{
+	std::string response = "";
+
+	for (int i = 0; i < numtrigs; i++) {
+		if (trigs[i]._tmsg == WM_DIABNEXTLVL) {
+			response += "\"enterance-x\": " + std::to_string(trigs[i].position.x) + ",\n";
+			response += "\"enterance-y\": " + std::to_string(trigs[i].position.y) + ",\n";
+		}
+	}
+
+	return response;
 }
 
 } // namespace devilution
