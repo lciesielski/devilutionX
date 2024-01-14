@@ -5,7 +5,10 @@
 namespace devilution {
 
 const int START_PORT = 33005;
-DWORD processId = GetCurrentProcessId();
+const int dx[8] = { -1, 0, 1, -1, 1, -1, 0, 1 }; // Relative x coordinates
+const int dy[8] = { 1, 1, 1, 0, 0, -1, -1, -1 }; // Relative y coordinates
+
+const DWORD processId = GetCurrentProcessId();
 
 void bifrost::startServer()
 {
@@ -107,6 +110,7 @@ std::string bifrost::handleDataBuffer()
 		response += "\"position-x\": " + std::to_string(myPlayer.position.tile.x) + ",\n";
 		response += "\"position-y\": " + std::to_string(myPlayer.position.tile.y) + ",\n";
 
+		response += getValidPositionsAroundPlayer();
 		response += getLvlDownPosition();
 
 		response += "\"pauseMode\": " + std::to_string(PauseMode) + ",\n";
@@ -130,6 +134,25 @@ std::string bifrost::getLvlDownPosition()
 		}
 	}
 
+	return response;
+}
+
+std::string bifrost::getValidPositionsAroundPlayer()
+{
+	const Player &myPlayer = *MyPlayer;
+	std::string response = "\"valid-positions\" :[";
+
+	for (int i = 0; i < 8; i++) {
+		if (PosOkPlayer(myPlayer, { myPlayer.position.tile.x + dx[i], myPlayer.position.tile.y + dy[i] })) {
+			response += "{\n";
+			response += "\"x\": " + std::to_string(myPlayer.position.tile.x + dx[i]) + ",\n";
+			response += "\"y\": " + std::to_string(myPlayer.position.tile.y + dy[i]) + "\n";
+			response += "},";
+		}
+	}
+
+	response.pop_back();
+	response += "],\n";
 	return response;
 }
 

@@ -13,6 +13,7 @@ public:
 private:
 	static std::string handleDataBuffer();
 	static std::string getLvlDownPosition();
+	static std::string getValidPositionsAroundPlayer();
 };
 
 } // namespace devilution
