@@ -1538,7 +1538,7 @@ void MonsterPetrified(Monster &monster)
 	}
 }
 
-Monster *AddSkeleton(Point position, Direction dir, bool inMap)
+std::optional<size_t> GetRandomSkeletonTypeIndex()
 {
 	int32_t typeCount = 0;
 	size_t skeletonIndexes[SkeletonTypes.size()];
@@ -1549,18 +1549,20 @@ Monster *AddSkeleton(Point position, Direction dir, bool inMap)
 	}
 
 	if (typeCount == 0) {
-		return nullptr;
+		return {};
 	}
 
 	const size_t typeIndex = skeletonIndexes[GenerateRnd(typeCount)];
-	return AddMonster(position, dir, typeIndex, inMap);
+	return typeIndex;
 }
 
-void SpawnSkeleton(Point position, Direction dir)
+Monster *AddSkeleton(Point position, Direction dir, bool inMap)
 {
-	Monster *skeleton = AddSkeleton(position, dir, true);
-	if (skeleton != nullptr)
-		StartSpecialStand(*skeleton, dir);
+	auto typeIndex = GetRandomSkeletonTypeIndex();
+	if (!typeIndex)
+		return nullptr;
+
+	return AddMonster(position, dir, *typeIndex, inMap);
 }
 
 bool IsLineNotSolid(Point startPoint, Point endPoint)
@@ -2295,7 +2297,10 @@ void LeoricAi(Monster &monster)
 		    && LineClearMissile(monster.position.tile, monster.enemyPosition)) {
 			Point newPosition = monster.position.tile + md;
 			if (IsTileAvailable(monster, newPosition) && ActiveMonsterCount < MaxMonsters) {
-				SpawnSkeleton(newPosition, md);
+				auto typeIndex = GetRandomSkeletonTypeIndex();
+				if (typeIndex) {
+					SpawnMonster(newPosition, md, *typeIndex, true);
+				}
 				StartSpecialStand(monster, md);
 			}
 		} else {
@@ -3130,6 +3135,21 @@ MonsterSpritesData LoadMonsterSpritesData(const MonsterData &monsterData)
 	return result;
 }
 
+void EnsureMonsterIndexIsActive(size_t monsterId)
+{
+	assert(monsterId < MaxMonsters);
+	for (size_t index = 0; index < MaxMonsters; index++) {
+		if (ActiveMonsters[index] != monsterId)
+			continue;
+		if (index < ActiveMonsterCount)
+			return; // monster is already active
+		int oldId = ActiveMonsters[ActiveMonsterCount];
+		ActiveMonsters[ActiveMonsterCount] = static_cast<int>(monsterId);
+		ActiveMonsters[index] = oldId;
+		ActiveMonsterCount += 1;
+	}
+}
+
 } // namespace
 
 size_t AddMonsterType(_monster_id type, placeflag placeflag)
@@ -3638,6 +3658,62 @@ Monster *AddMonster(Point position, Direction dir, size_t typeIndex, bool inMap)
 	return nullptr;
 }
 
+void SpawnMonster(Point position, Direction dir, size_t typeIndex, bool startSpecialStand /*= false*/)
+{
+	if (ActiveMonsterCount >= MaxMonsters)
+		return;
+
+	// The command is only executed for the level owner, to prevent desyncs in multiplayer.
+	if (!MyPlayer->isLevelOwnedByLocalClient())
+		return;
+
+	size_t monsterIndex = ActiveMonsters[ActiveMonsterCount];
+	ActiveMonsterCount += 1;
+	uint32_t seed = GetLCGEngineState();
+	// Update local state immediately to increase ActiveMonsterCount instantly (this allows multiple monsters to be spawned in one game tick)
+	InitializeSpawnedMonster(position, dir, typeIndex, monsterIndex, seed);
+	NetSendCmdSpawnMonster(position, dir, static_cast<uint16_t>(typeIndex), static_cast<uint16_t>(monsterIndex), seed);
+}
+
+void LoadDeltaSpawnedMonster(size_t typeIndex, size_t monsterId, uint32_t seed)
+{
+	SetRndSeed(seed);
+	EnsureMonsterIndexIsActive(monsterId);
+	WorldTilePosition position = GolemHoldingCell;
+	Monster &monster = Monsters[monsterId];
+	M_ClearSquares(monster);
+	InitMonster(monster, Direction::South, typeIndex, position);
+}
+
+void InitializeSpawnedMonster(Point position, Direction dir, size_t typeIndex, size_t monsterId, uint32_t seed)
+{
+	SetRndSeed(seed);
+	EnsureMonsterIndexIsActive(monsterId);
+	Monster &monster = Monsters[monsterId];
+	M_ClearSquares(monster);
+
+	// When we receive a network message, the position we got for the new monster may already be occupied.
+	// That's why we check for the next free tile for the monster.
+	auto freePosition = Crawl(0, MaxCrawlRadius, [&](Displacement displacement) -> std::optional<Point> {
+		Point posToCheck = position + displacement;
+		if (IsTileAvailable(posToCheck))
+			return posToCheck;
+		return {};
+	});
+
+	assert(freePosition);
+	assert(!MyPlayer->isLevelOwnedByLocalClient() || (freePosition && position == *freePosition));
+	position = freePosition.value_or(position);
+
+	monster.occupyTile(position, false);
+	InitMonster(monster, dir, typeIndex, position);
+
+	if (IsSkel(monster.type().type))
+		StartSpecialStand(monster, dir);
+	else
+		M_StartStand(monster, dir);
+}
+
 void AddDoppelganger(Monster &monster)
 {
 	Point target = { 0, 0 };
@@ -3649,7 +3725,7 @@ void AddDoppelganger(Monster &monster)
 	}
 	if (target != Point { 0, 0 }) {
 		const size_t typeIndex = GetMonsterTypeIndex(monster.type().type);
-		AddMonster(target, monster.direction, typeIndex, true);
+		SpawnMonster(target, monster.direction, typeIndex);
 	}
 }
 
