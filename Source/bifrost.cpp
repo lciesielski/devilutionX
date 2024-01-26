@@ -110,7 +110,7 @@ std::string bifrost::handleDataBuffer()
 		response += "\"position-x\": " + std::to_string(myPlayer.position.tile.x) + ",\n";
 		response += "\"position-y\": " + std::to_string(myPlayer.position.tile.y) + ",\n";
 
-		response += getValidPositionsAroundPlayer();
+		response += getPositionsAroundPlayer();
 		response += getLvlDownPosition();
 
 		response += "\"pauseMode\": " + std::to_string(PauseMode) + ",\n";
@@ -137,23 +137,35 @@ std::string bifrost::getLvlDownPosition()
 	return response;
 }
 
-std::string bifrost::getValidPositionsAroundPlayer()
+std::string bifrost::getPositionsAroundPlayer()
 {
 	const Player &myPlayer = *MyPlayer;
-	std::string response = "\"valid-positions\" :[";
+	std::string validPositions = "\"valid-positions\" :[";
+	std::string invalidPositions = "\"invalid-positions\" :[";
 
 	for (int i = 0; i < 8; i++) {
 		if (PosOkPlayer(myPlayer, { myPlayer.position.tile.x + dx[i], myPlayer.position.tile.y + dy[i] })) {
-			response += "{\n";
-			response += "\"x\": " + std::to_string(myPlayer.position.tile.x + dx[i]) + ",\n";
-			response += "\"y\": " + std::to_string(myPlayer.position.tile.y + dy[i]) + "\n";
-			response += "},";
+			validPositions += "{\n";
+			validPositions += "\"x\": " + std::to_string(myPlayer.position.tile.x + dx[i]) + ",\n";
+			validPositions += "\"y\": " + std::to_string(myPlayer.position.tile.y + dy[i]) + "\n";
+			validPositions += "},";
+		} else {
+			invalidPositions += "{\n";
+			invalidPositions += "\"x\": " + std::to_string(myPlayer.position.tile.x + dx[i]) + ",\n";
+			invalidPositions += "\"y\": " + std::to_string(myPlayer.position.tile.y + dy[i]) + "\n";
+			invalidPositions += "},";
 		}
 	}
 
-	response.pop_back();
-	response += "],\n";
-	return response;
+	validPositions.pop_back();
+	validPositions += "],\n";
+
+	if (invalidPositions.back() == ',') {
+		invalidPositions.pop_back();	
+	}
+	invalidPositions += "],\n";
+
+	return validPositions.append(invalidPositions);
 }
 
 } // namespace devilution
