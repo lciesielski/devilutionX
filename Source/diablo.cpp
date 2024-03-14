@@ -107,7 +107,8 @@
 
 namespace devilution {
 
-uint32_t glSeedTbl[NUMLEVELS];
+uint32_t DungeonSeeds[NUMLEVELS];
+std::optional<uint32_t> LevelSeeds[NUMLEVELS];
 Point MousePosition;
 bool gbRunGame;
 bool gbRunGameResult;
@@ -1350,7 +1351,7 @@ void LoadAllGFX()
  */
 void CreateLevel(lvl_entry entry)
 {
-	CreateDungeon(glSeedTbl[currlevel], entry);
+	CreateDungeon(DungeonSeeds[currlevel], entry);
 
 	switch (leveltype) {
 	case DTYPE_TOWN:
@@ -2938,7 +2939,7 @@ void LoadGameLevel(bool firstflag, lvl_entry lvldir)
 	if (pcurs > CURSOR_HAND && pcurs < CURSOR_FIRSTITEM) {
 		NewCursor(CURSOR_HAND);
 	}
-	SetRndSeed(glSeedTbl[currlevel]);
+	SetRndSeed(DungeonSeeds[currlevel]);
 	IncProgress();
 	MakeLightTable();
 	SetDungeonMicros();
@@ -2958,12 +2959,12 @@ void LoadGameLevel(bool firstflag, lvl_entry lvldir)
 		InitAutomapOnce();
 	}
 	if (!setlevel) {
-		SetRndSeed(glSeedTbl[currlevel]);
+		SetRndSeed(DungeonSeeds[currlevel]);
 	} else {
 		// Maps are not randomly generated, but the monsters max hitpoints are.
 		// So we need to ensure that we have a stable seed when generating quest/set-maps.
 		// For this purpose we reuse the normal dungeon seeds.
-		SetRndSeed(glSeedTbl[static_cast<size_t>(setlvlnum)]);
+		SetRndSeed(DungeonSeeds[static_cast<size_t>(setlvlnum)]);
 	}
 
 	if (leveltype == DTYPE_TOWN) {
@@ -2995,7 +2996,7 @@ void LoadGameLevel(bool firstflag, lvl_entry lvldir)
 		CreateLevel(lvldir);
 		IncProgress();
 		LoadLevelSOLData();
-		SetRndSeed(glSeedTbl[currlevel]);
+		SetRndSeed(DungeonSeeds[currlevel]);
 
 		if (leveltype != DTYPE_TOWN) {
 			GetLevelMTypes();
@@ -3043,7 +3044,7 @@ void LoadGameLevel(bool firstflag, lvl_entry lvldir)
 				visited = visited || player._pLvlVisited[currlevel];
 		}
 
-		SetRndSeed(glSeedTbl[currlevel]);
+		SetRndSeed(DungeonSeeds[currlevel]);
 
 		if (leveltype != DTYPE_TOWN) {
 			if (firstflag || lvldir == ENTRY_LOAD || !myPlayer._pLvlVisited[currlevel] || gbIsMultiplayer) {

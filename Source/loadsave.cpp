@@ -1759,6 +1759,33 @@ void LoadAdditionalMissiles()
 	}
 }
 
+void SaveLevelSeeds(SaveWriter &saveWriter)
+{
+	SaveHelper file(saveWriter, "levelseeds", giNumberOfLevels * (sizeof(uint8_t) + sizeof(uint32_t)));
+
+	for (int i = 0; i < giNumberOfLevels; i++) {
+		file.WriteLE<uint8_t>(LevelSeeds[i] ? 1 : 0);
+		if (LevelSeeds[i]) {
+			file.WriteLE<uint32_t>(*LevelSeeds[i]);
+		}
+	}
+}
+
+void LoadLevelSeeds()
+{
+	LoadHelper file(OpenSaveArchive(gSaveNumber), "levelseeds");
+	if (!file.IsValid())
+		return;
+
+	for (int i = 0; i < giNumberOfLevels; i++) {
+		if (file.NextLE<uint8_t>() != 0) {
+			LevelSeeds[i] = file.NextLE<uint32_t>();
+		} else {
+			LevelSeeds[i] = std::nullopt;
+		}
+	}
+}
+
 const int DiabloItemSaveSize = 368;
 const int HellfireItemSaveSize = 372;
 
@@ -2136,9 +2163,11 @@ void LoadGame(bool firstflag)
 		app_fatal(_("Player is on a Hellfire only level"));
 
 	for (uint8_t i = 0; i < giNumberOfLevels; i++) {
-		glSeedTbl[i] = file.NextBE<uint32_t>();
+		DungeonSeeds[i] = file.NextBE<uint32_t>();
+		LevelSeeds[i] = std::nullopt;
 		file.Skip(4); // Skip loading gnLevelTypeTbl
 	}
+	LoadLevelSeeds();
 
 	Player &myPlayer = *MyPlayer;
 
@@ -2418,7 +2447,7 @@ void SaveGameData(SaveWriter &saveWriter)
 	file.WriteBE<int32_t>(ActiveObjectCount);
 
 	for (uint8_t i = 0; i < giNumberOfLevels; i++) {
-		file.WriteBE<uint32_t>(glSeedTbl[i]);
+		file.WriteBE<uint32_t>(DungeonSeeds[i]);
 		file.WriteBE<int32_t>(getHellfireLevelType(GetLevelType(i)));
 	}
 
@@ -2538,6 +2567,7 @@ void SaveGameData(SaveWriter &saveWriter)
 	file.WriteBE<int32_t>(AutoMapScale);
 
 	SaveAdditionalMissiles(saveWriter);
+	SaveLevelSeeds(saveWriter);
 }
 
 void SaveGame()
@@ -2554,7 +2584,7 @@ void SaveLevel(SaveWriter &saveWriter)
 	DoUnVision(myPlayer.position.tile, myPlayer._pLightRad); // fix for vision staying on the level
 
 	if (leveltype == DTYPE_TOWN)
-		glSeedTbl[0] = AdvanceRndSeed();
+		DungeonSeeds[0] = AdvanceRndSeed();
 
 	char szName[MaxMpqPathSize];
 	GetTempLevelNames(szName);
