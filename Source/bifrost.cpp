@@ -74,7 +74,8 @@ void bifrost::startServer()
 
 		if (strcmp(buffer, "_DATA_") == 0) {
 			response = handleDataBuffer();
-		} else if (strcmp(buffer, "_POSITIONS_") == 0) {
+		} else if (strcmp(buffer, "_HEALTHY_") == 0) {
+			setPlayerHealthy();
 			response = "{}";
 		} else {
 			response = "{}";
@@ -105,18 +106,19 @@ std::string bifrost::handleDataBuffer()
 	std::string response = "{\n";
 	if (&myPlayer != nullptr) {
 		response += "\"experience\": " + std::to_string(myPlayer._pExperience) + ",\n";
+		response += "\"level\": " + std::to_string(myPlayer.getCharacterLevel()) + ",\n";
 		response += "\"life\": " + std::to_string(myPlayer._pHitPoints >> 6) + ",\n";
 		response += "\"mana\": " + std::to_string(myPlayer._pMana >> 6) + ",\n";
 		response += "\"dungeonLevel\": " + std::to_string(myPlayer.plrlevel) + ",\n";
-
-		response += getHighlightedMonster();
-
 		response += "\"position-x\": " + std::to_string(myPlayer.position.tile.x) + ",\n";
 		response += "\"position-y\": " + std::to_string(myPlayer.position.tile.y) + ",\n";
 
 		response += getPositionsAroundPlayer();
 		response += getLvlDownPosition();
-		//response += getMonstersOnLevel();
+
+		response += getTheButcher();
+		response += getHighlightedMonster();
+		response += getMonstersOnLevel();
 
 		response += "\"pauseMode\": " + std::to_string(PauseMode) + ",\n";
 		response += "\"processId\": " + std::to_string(processId) + "\n";
@@ -175,17 +177,19 @@ std::string bifrost::getPositionsAroundPlayer()
 
 std::string bifrost::getMonstersOnLevel()
 {
-	std::string monsterPositions = "\"monster-positions\" :[";
+	std::string monsterPositions = "\"monsters\" :[";
 
-	for (int i = 0; i < ActiveMonsterCount; i++) {
-		Monster &monster = Monsters[ActiveMonsters[i]];
+	for (int i = 0; i < MaxMonsters; i++) {
+		Monster &monster = Monsters[i];
 
-		if (!monster.isInvalid && !monster.isPlayerMinion())
+		if (!monster.isPlayerMinion())
 		{
 			monsterPositions += "{\n";
 			monsterPositions += "\"mon\": " + std::to_string(i) + ",\n";
-			monsterPositions += "\"x\": " + std::to_string(Monsters[i].position.tile.x) + ",\n";
-			monsterPositions += "\"y\": " + std::to_string(Monsters[i].position.tile.y) + "\n";
+			monsterPositions += "\"life\": " + std::to_string(monster.hitPoints >> 6) + "\n";
+			//monsterPositions += "\"name\": \"" + std::string(monster.name()) + "\",\n";
+			//monsterPositions += "\"x\": " + std::to_string(Monsters[i].position.tile.x) + ",\n";
+			//monsterPositions += "\"y\": " + std::to_string(Monsters[i].position.tile.y) + "\n";
 			monsterPositions += "},";
 		}
 	}
@@ -216,6 +220,49 @@ std::string bifrost::getHighlightedMonster()
 	}
 
 	return response;
+}
+
+std::string bifrost::getTheButcher()
+{
+	std::string response = "";
+	const Player &myPlayer = *MyPlayer;
+
+	if (myPlayer.plrlevel == 2)
+	{
+		for (int i = 0; i < MaxMonsters; i++) {
+			Monster &monster = Monsters[i];
+
+			if (!monster.isPlayerMinion()) {
+				if (std::string(monster.name()) == "The Butcher") {
+					response += "\"butcher\": " + std::to_string(pcursmonst) + ",\n";
+					response += "\"butcher-life\": " + std::to_string(monster.hitPoints >> 6) + ",\n";
+					response += "\"butcher-x\": " + std::to_string(Monsters[i].position.tile.x) + ",\n";
+					response += "\"butcher-y\": " + std::to_string(Monsters[i].position.tile.y) + ",\n";
+
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		response += "\"butcher\": -1,\n";
+		response += "\"butcher-life\": -1,\n";
+		response += "\"butcher-x\": -1,\n";
+		response += "\"butcher-y\": -1,\n";
+	}
+
+	return response;
+}
+
+void bifrost::setPlayerHealthy()
+{
+	const int hitpoints = 800 << 6;
+	Player &myPlayer = *MyPlayer;
+	myPlayer._pHPBase = hitpoints;
+	myPlayer._pMaxHPBase = hitpoints;
+	myPlayer._pHitPoints = hitpoints;
+	myPlayer._pMaxHP = hitpoints;
 }
 
 } // namespace devilution
