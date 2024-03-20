@@ -16,6 +16,7 @@ private:
 	static std::string getPositionsAroundPlayer();
 	static std::string getMonstersOnLevel();
 	static std::string getHighlightedMonster();
+	static std::string getTheButcher();
 };
 
 } // namespace devilution
