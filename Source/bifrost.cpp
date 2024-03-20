@@ -1,5 +1,6 @@
 #include "bifrost.h"
 #include "player.h"
+#include "cursor.h"
 #include <levels/trigs.h>
 
 namespace devilution {
@@ -107,11 +108,15 @@ std::string bifrost::handleDataBuffer()
 		response += "\"life\": " + std::to_string(myPlayer._pHitPoints >> 6) + ",\n";
 		response += "\"mana\": " + std::to_string(myPlayer._pMana >> 6) + ",\n";
 		response += "\"dungeonLevel\": " + std::to_string(myPlayer.plrlevel) + ",\n";
+
+		response += getHighlightedMonster();
+
 		response += "\"position-x\": " + std::to_string(myPlayer.position.tile.x) + ",\n";
 		response += "\"position-y\": " + std::to_string(myPlayer.position.tile.y) + ",\n";
 
 		response += getPositionsAroundPlayer();
 		response += getLvlDownPosition();
+		//response += getMonstersOnLevel();
 
 		response += "\"pauseMode\": " + std::to_string(PauseMode) + ",\n";
 		response += "\"processId\": " + std::to_string(processId) + "\n";
@@ -166,6 +171,51 @@ std::string bifrost::getPositionsAroundPlayer()
 	invalidPositions += "],\n";
 
 	return validPositions.append(invalidPositions);
+}
+
+std::string bifrost::getMonstersOnLevel()
+{
+	std::string monsterPositions = "\"monster-positions\" :[";
+
+	for (int i = 0; i < ActiveMonsterCount; i++) {
+		Monster &monster = Monsters[ActiveMonsters[i]];
+
+		if (!monster.isInvalid && !monster.isPlayerMinion())
+		{
+			monsterPositions += "{\n";
+			monsterPositions += "\"mon\": " + std::to_string(i) + ",\n";
+			monsterPositions += "\"x\": " + std::to_string(Monsters[i].position.tile.x) + ",\n";
+			monsterPositions += "\"y\": " + std::to_string(Monsters[i].position.tile.y) + "\n";
+			monsterPositions += "},";
+		}
+	}
+
+	if (monsterPositions.back() == ',') {
+		monsterPositions.pop_back();
+	}
+
+	monsterPositions += "],\n";
+
+	return monsterPositions;
+}
+
+std::string bifrost::getHighlightedMonster()
+{
+	std::string response = "";
+
+	if (pcursmonst != -1) {
+		Monster &monster = Monsters[pcursmonst];
+
+		response += "\"target-mon\": " + std::to_string(pcursmonst) + ",\n";
+		response += "\"target-mon-health\": " + std::to_string(monster.hitPoints >> 6) + ",\n";
+	}
+	else
+	{
+		response += "\"target-mon\": " + std::to_string(pcursmonst) + ",\n";
+		response += "\"target-mon-health\": " + std::to_string(pcursmonst) + ",\n";
+	}
+
+	return response;
 }
 
 } // namespace devilution

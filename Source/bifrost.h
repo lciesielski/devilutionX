@@ -14,6 +14,8 @@ private:
 	static std::string handleDataBuffer();
 	static std::string getLvlDownPosition();
 	static std::string getPositionsAroundPlayer();
+	static std::string getMonstersOnLevel();
+	static std::string getHighlightedMonster();
 };
 
 } // namespace devilution
