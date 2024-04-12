@@ -116,6 +116,7 @@ std::string bifrost::handleDataBuffer()
 		response += getLvlDownPosition();
 
 		response += getTheButcher();
+		response += getHighlightedObject();
 		response += getHighlightedMonster();
 		response += getMonstersOnLevel();
 
@@ -216,6 +217,27 @@ std::string bifrost::getHighlightedMonster()
 	{
 		response += "\"target-mon\": " + std::to_string(pcursmonst) + ",\n";
 		response += "\"target-mon-health\": " + std::to_string(pcursmonst) + ",\n";
+	}
+
+	return response;
+}
+
+std::string bifrost::getHighlightedObject()
+{
+	std::string response = "";
+
+	if (ObjectUnderCursor != nullptr) {
+		const Object &object = *ObjectUnderCursor;
+		//response += "\"target-obj\": " + std::to_string(object._otype) + ",\n";
+		response += "\"target-obj-door\": " + std::to_string(object.isDoor()) + ",\n";
+		//DOOR_OPEN = 1, DOOR_BLOCKED = 2 -> objects.cpp enum
+		response += "\"target-obj-door-opened\": " + std::to_string(object._oVar4 == 1 || object._oVar4 == 2) + ",\n";
+	}
+	else
+	{
+		//response += "\"target-obj\": -1,\n";
+		response += "\"target-obj-door\": -1,\n";
+		response += "\"target-obj-door-opened\": -1,\n";
 	}
 
 	return response;
