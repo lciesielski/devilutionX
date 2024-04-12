@@ -632,12 +632,10 @@ void DrawItem(const Surface &out, int8_t itemIndex, Point targetBufferPosition)
 void DrawMonsterHelper(const Surface &out, Point tilePosition, Point targetBufferPosition)
 {
 	int mi = dMonster[tilePosition.x][tilePosition.y];
-	bool isNegativeMonster = mi < 0;
+
 	mi = std::abs(mi) - 1;
 
 	if (leveltype == DTYPE_TOWN) {
-		if (isNegativeMonster)
-			return;
 		auto &towner = Towners[mi];
 		const Point position = targetBufferPosition + towner.getRenderingOffset();
 		const ClxSprite sprite = towner.currentSprite();
@@ -662,19 +660,7 @@ void DrawMonsterHelper(const Surface &out, Point tilePosition, Point targetBuffe
 	}
 
 	const ClxSprite sprite = monster.animInfo.currentSprite();
-
 	Displacement offset = monster.getRenderingOffset(sprite);
-	if (monster.isWalking()) {
-		bool isSideWalkingToLeft = monster.mode == MonsterMode::MoveSideways && monster.direction == Direction::West;
-		if (isNegativeMonster && !isSideWalkingToLeft)
-			return;
-		if (!isNegativeMonster && isSideWalkingToLeft)
-			return;
-		if (isSideWalkingToLeft)
-			offset -= Displacement { 64, 0 };
-	} else if (isNegativeMonster) {
-		return;
-	}
 
 	const Point monsterRenderPosition = targetBufferPosition + offset;
 	if (mi == pcursmonst) {
@@ -747,13 +733,72 @@ void DrawDungeon(const Surface &out, Point tilePosition, Point targetBufferPosit
 	if (TileContainsDeadPlayer(tilePosition)) {
 		DrawDeadPlayer(out, tilePosition, targetBufferPosition);
 	}
-	int8_t playerId = dPlayer[tilePosition.x][tilePosition.y];
-	if (static_cast<size_t>(playerId - 1) < Players.size()) {
-		DrawPlayerHelper(out, Players[playerId - 1], tilePosition, targetBufferPosition);
+	Player *player = PlayerAtPosition(tilePosition);
+	if (player != nullptr) {
+		auto playerId = static_cast<int8_t>(player->getId() + 1);
+		// If sprite is moving southwards or east, we want to draw it offset from the tile it's moving to, so we need negative ID
+		// This respests the order that tiles are drawn. By using the negative id, we ensure that the sprite is drawn with priority
+		if (player->_pmode == PM_WALK_SOUTHWARDS || (player->_pmode == PM_WALK_SIDEWAYS && player->_pdir == Direction::East))
+			playerId = -playerId;
+		if (dPlayer[tilePosition.x][tilePosition.y] == playerId) {
+			auto tempTilePosition = tilePosition;
+			auto tempTargetBufferPosition = targetBufferPosition;
+
+			// Offset the sprite to the tile it's moving from
+			if (player->_pmode == PM_WALK_SOUTHWARDS) {
+				switch (player->_pdir) {
+				case Direction::SouthWest:
+					tempTargetBufferPosition += { TILE_WIDTH / 2, -TILE_HEIGHT / 2 };
+					break;
+				case Direction::South:
+					tempTargetBufferPosition += { 0, -TILE_HEIGHT };
+					break;
+				case Direction::SouthEast:
+					tempTargetBufferPosition += { -TILE_WIDTH / 2, -TILE_HEIGHT / 2 };
+					break;
+				}
+				tempTilePosition += Opposite(player->_pdir);
+			} else if (player->_pmode == PM_WALK_SIDEWAYS && player->_pdir == Direction::East) {
+				tempTargetBufferPosition += { -TILE_WIDTH, 0 };
+				tempTilePosition += Opposite(player->_pdir);
+			}
+			DrawPlayerHelper(out, *player, tempTilePosition, tempTargetBufferPosition);
+		}
 	}
-	if (dMonster[tilePosition.x][tilePosition.y] != 0) {
-		DrawMonsterHelper(out, tilePosition, targetBufferPosition);
+
+	Monster *monster = FindMonsterAtPosition(tilePosition);
+	if (monster != nullptr) {
+		auto monsterId = static_cast<int16_t>(monster->getId() + 1);
+		// If sprite is moving southwards or east, we want to draw it offset from the tile it's moving to, so we need negative ID
+		// This respests the order that tiles are drawn. By using the negative id, we ensure that the sprite is drawn with priority
+		if (monster->mode == MonsterMode::MoveSouthwards || (monster->mode == MonsterMode::MoveSideways && monster->direction == Direction::East))
+			monsterId = -monsterId;
+		if (dMonster[tilePosition.x][tilePosition.y] == monsterId) {
+			auto tempTilePosition = tilePosition;
+			auto tempTargetBufferPosition = targetBufferPosition;
+
+			// Offset the sprite to the tile it's moving from
+			if (monster->mode == MonsterMode::MoveSouthwards) {
+				switch (monster->direction) {
+				case Direction::SouthWest:
+					tempTargetBufferPosition += { TILE_WIDTH / 2, -TILE_HEIGHT / 2 };
+					break;
+				case Direction::South:
+					tempTargetBufferPosition += { 0, -TILE_HEIGHT };
+					break;
+				case Direction::SouthEast:
+					tempTargetBufferPosition += { -TILE_WIDTH / 2, -TILE_HEIGHT / 2 };
+					break;
+				}
+				tempTilePosition += Opposite(monster->direction);
+			} else if (monster->mode == MonsterMode::MoveSideways && monster->direction == Direction::East) {
+				tempTargetBufferPosition += { -TILE_WIDTH, 0 };
+				tempTilePosition += Opposite(monster->direction);
+			}
+			DrawMonsterHelper(out, tempTilePosition, tempTargetBufferPosition);
+		}
 	}
+
 	DrawMissile(out, tilePosition, targetBufferPosition, false);
 
 	if (object != nullptr && !object->_oPreFlag) {
@@ -1334,7 +1379,6 @@ Displacement GetOffsetForWalking(const AnimationInfo &animationInfo, const Direc
 {
 	// clang-format off
 	//                                           South,        SouthWest,    West,         NorthWest,    North,        NorthEast,     East,         SouthEast,
-	constexpr Displacement StartOffset[8]    = { {   0, -32 }, {  32, -16 }, {  64,   0 }, {   0,   0 }, {   0,   0 }, {  0,    0 },  { -64,   0 }, { -32, -16 } };
 	constexpr Displacement MovingOffset[8]   = { {   0,  32 }, { -32,  16 }, { -64,   0 }, { -32, -16 }, {   0, -32 }, {  32, -16 },  {  64,   0 }, {  32,  16 } };
 	// clang-format on
 
@@ -1345,8 +1389,6 @@ Displacement GetOffsetForWalking(const AnimationInfo &animationInfo, const Direc
 
 	if (cameraMode) {
 		offset = -offset;
-	} else {
-		offset += StartOffset[static_cast<size_t>(dir)];
 	}
 
 	return offset;
