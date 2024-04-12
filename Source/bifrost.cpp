@@ -74,8 +74,8 @@ void bifrost::startServer()
 
 		if (strcmp(buffer, "_DATA_") == 0) {
 			response = handleDataBuffer();
-		} else if (strcmp(buffer, "_POSITIONS_") == 0) {
-			response = "{}";
+		} else if (strcmp(buffer, "_HEALTHY_") == 0) {
+			response = handleHealthyBuffer();
 		} else {
 			response = "{}";
 		}
@@ -273,6 +273,21 @@ std::string bifrost::getTheButcher()
 		response += "\"butcher-y\": -1,\n";
 	}
 
+	return response;
+}
+
+std::string bifrost::handleHealthyBuffer()
+{
+	Player &myPlayer = *MyPlayer;
+	std::string response = "{\n";
+	if (&myPlayer != nullptr) {
+		SetPlrVit(myPlayer, 500);
+		response += "\"player-vitality\": 500\n";
+	} else {
+		response += "\"player-vitality\": -1\n";
+	}
+
+	response += "}\n";
 	return response;
 }
 
