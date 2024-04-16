@@ -104,6 +104,7 @@ std::string bifrost::handleDataBuffer()
 	const Player &myPlayer = *MyPlayer;
 	std::string response = "{\n";
 	if (&myPlayer != nullptr) {
+		response += "\"levelChanging\": " + std::to_string(myPlayer._pLvlChanging) + ",\n";
 		response += "\"experience\": " + std::to_string(myPlayer._pExperience) + ",\n";
 		response += "\"level\": " + std::to_string(myPlayer.getCharacterLevel()) + ",\n";
 		response += "\"life\": " + std::to_string(myPlayer._pHitPoints >> 6) + ",\n";
