@@ -249,7 +249,7 @@ std::string bifrost::getTheButcher()
 	std::string response = "";
 	const Player &myPlayer = *MyPlayer;
 
-	if (myPlayer.plrlevel == 2)
+	if (myPlayer.plrlevel == 2 && !myPlayer._pLvlChanging)
 	{
 		for (int i = 0; i < MaxMonsters; i++) {
 			Monster &monster = Monsters[i];
