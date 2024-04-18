@@ -165,11 +165,13 @@ std::string bifrost::getPositionsAroundPlayer()
 		}
 	}
 
-	validPositions.pop_back();
+	if (validPositions.back() == ',') {
+		validPositions.pop_back();
+	}
 	validPositions += "],\n";
 
 	if (invalidPositions.back() == ',') {
-		invalidPositions.pop_back();	
+		invalidPositions.pop_back();
 	}
 	invalidPositions += "],\n";
 
