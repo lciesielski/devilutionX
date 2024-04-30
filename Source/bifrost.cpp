@@ -117,6 +117,8 @@ std::string bifrost::handleDataBuffer()
 
 		response += getPositionsAroundPlayer();
 		response += getLvlDownPosition();
+		response += getLvlUpPosition();
+		response += getTownShortcutPosition();
 
 		response += getTheButcher();
 		response += getHighlightedObject();
@@ -135,13 +137,68 @@ std::string bifrost::handleDataBuffer()
 
 std::string bifrost::getLvlDownPosition()
 {
+	bool descent = false;
 	std::string response = "";
 
 	for (int i = 0; i < numtrigs; i++) {
 		if (trigs[i]._tmsg == WM_DIABNEXTLVL) {
-			response += "\"enterance-x\": " + std::to_string(trigs[i].position.x) + ",\n";
-			response += "\"enterance-y\": " + std::to_string(trigs[i].position.y) + ",\n";
+			response += "\"descent-x\": " + std::to_string(trigs[i].position.x) + ",\n";
+			response += "\"descent-y\": " + std::to_string(trigs[i].position.y) + ",\n";
+			descent = true;
+			break;
 		}
+	}
+
+	if (!descent)
+	{
+		response += "\"descent-x\": -1,\n";
+		response += "\"descent-y\": -1,\n";
+	}
+
+	return response;
+}
+
+std::string bifrost::getLvlUpPosition()
+{
+	bool ascent = false;
+	std::string response = "";
+
+	for (int i = 0; i < numtrigs; i++) {
+		if (trigs[i]._tmsg == WM_DIABPREVLVL) {
+			response += "\"ascent-x\": " + std::to_string(trigs[i].position.x) + ",\n";
+			response += "\"ascent-y\": " + std::to_string(trigs[i].position.y) + ",\n";
+			ascent = true;
+			break;
+		}
+	}
+
+	if (!ascent)
+	{
+		response += "\"ascent-x\": -1,\n";
+		response += "\"ascent-y\": -1,\n";
+	}
+
+	return response;
+}
+
+std::string bifrost::getTownShortcutPosition()
+{
+	bool town = false;
+	std::string response = "";
+
+	for (int i = 0; i < numtrigs; i++) {
+		if (trigs[i]._tmsg == WM_DIABTWARPUP) {
+			response += "\"town-x\": " + std::to_string(trigs[i].position.x) + ",\n";
+			response += "\"town-y\": " + std::to_string(trigs[i].position.y) + ",\n";
+			town = true;
+			break;
+		}
+	}
+
+	if (!town)
+	{
+		response += "\"town-x\": -1,\n";
+		response += "\"town-y\": -1,\n";
 	}
 
 	return response;

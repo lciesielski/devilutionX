@@ -15,6 +15,8 @@ private:
 	static std::string handleHealthyBuffer();
 	static std::string handleTestBuffer();
 	static std::string getLvlDownPosition();
+	static std::string getLvlUpPosition();
+	static std::string getTownShortcutPosition();
 	static std::string getPositionsAroundPlayer();
 	static std::string getMonstersOnLevel();
 	static std::string getHighlightedMonster();
