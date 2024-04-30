@@ -142,7 +142,7 @@ bool TileAllowsLight(Point position)
 {
 	if (!InDungeonBounds(position))
 		return false;
-	return !TileHasAny(dPiece[position.x][position.y], TileProperties::BlockLight);
+	return !TileHasAny(position, TileProperties::BlockLight);
 }
 
 void DoVisionFlags(Point position, MapExplorationType doAutomap, bool visible)
@@ -294,7 +294,7 @@ void DoVision(Point position, uint8_t radius, MapExplorationType doAutomap, bool
 				Point crawl = position + VisionCrawlTable[j][k] * factor;
 				if (!InDungeonBounds(crawl))
 					break;
-				bool blockerFlag = TileHasAny(dPiece[crawl.x][crawl.y], TileProperties::BlockLight);
+				bool blockerFlag = TileHasAny(crawl, TileProperties::BlockLight);
 				bool tileOK = !blockerFlag;
 
 				if (VisionCrawlTable[j][k].deltaX > 0 && VisionCrawlTable[j][k].deltaY > 0) {
@@ -322,8 +322,8 @@ void MakeLightTable()
 {
 	// Generate 16 gradually darker translation tables for doing lighting
 	uint8_t shade = 0;
-	constexpr uint8_t black = 0;
-	constexpr uint8_t white = 255;
+	constexpr uint8_t Black = 0;
+	constexpr uint8_t White = 255;
 	for (auto &lightTable : LightTables) {
 		uint8_t colorIndex = 0;
 		for (uint8_t steps : { 16, 16, 16, 16, 16, 16, 16, 16, 8, 8, 8, 8, 16, 16, 16, 16, 16, 16 }) {
@@ -331,13 +331,13 @@ void MakeLightTable()
 			const uint8_t shadeStart = colorIndex;
 			const uint8_t shadeEnd = shadeStart + steps - 1;
 			for (uint8_t step = 0; step < steps; step++) {
-				if (colorIndex == black) {
-					lightTable[colorIndex++] = black;
+				if (colorIndex == Black) {
+					lightTable[colorIndex++] = Black;
 					continue;
 				}
 				int color = shadeStart + step + shading;
-				if (color > shadeEnd || color == white)
-					color = black;
+				if (color > shadeEnd || color == White)
+					color = Black;
 				lightTable[colorIndex++] = color;
 			}
 		}
@@ -351,12 +351,14 @@ void MakeLightTable()
 		const auto shades = static_cast<int>(LightTables.size() - 1);
 		for (int i = 0; i < shades; i++) {
 			auto &lightTable = LightTables[i];
-			constexpr int range = 16;
-			for (int j = 0; j < range; j++) {
-				uint8_t color = ((range - 1) << 4) / shades * (shades - i) / range * (j + 1);
+			constexpr int Range = 16;
+			for (int j = 0; j < Range; j++) {
+				uint8_t color = ((Range - 1) << 4) / shades * (shades - i) / Range * (j + 1);
 				color = 1 + (color >> 4);
-				lightTable[j + 1] = color;
-				lightTable[31 - j] = color;
+				int idx = j + 1;
+				lightTable[idx] = color;
+				idx = 31 - j;
+				lightTable[idx] = color;
 			}
 		}
 	} else if (IsAnyOf(leveltype, DTYPE_NEST, DTYPE_CRYPT)) {
@@ -391,7 +393,8 @@ void MakeLightTable()
 					// Leaner falloff
 					scaled = factor * maxDarkness;
 				}
-				LightFalloffs[radius][distance] = static_cast<uint8_t>(scaled + 0.5F); // round up
+				scaled += 0.5F; // Round up
+				LightFalloffs[radius][distance] = static_cast<uint8_t>(scaled);
 			}
 		}
 	}
@@ -581,7 +584,7 @@ void ProcessLightList()
 			i--;
 			continue;
 		}
-		if (TileHasAny(dPiece[light.position.tile.x][light.position.tile.y], TileProperties::Solid))
+		if (TileHasAny(light.position.tile, TileProperties::Solid))
 			continue; // Monster hidden in a wall, don't spoil the surprise
 		DoLighting(light.position.tile, light.radius, light.position.offset);
 	}

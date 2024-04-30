@@ -241,7 +241,7 @@ bool RndLocOk(Point p)
 		return false;
 	if (TileContainsSetPiece(p))
 		return false;
-	if (TileHasAny(dPiece[p.x][p.y], TileProperties::Solid))
+	if (TileHasAny(p, TileProperties::Solid))
 		return false;
 	return IsNoneOf(leveltype, DTYPE_CATHEDRAL, DTYPE_CRYPT) || dPiece[p.x][p.y] <= 125 || dPiece[p.x][p.y] >= 143;
 }
@@ -251,14 +251,14 @@ bool IsAreaOk(Rectangle rect)
 	return c_all_of(PointsInRectangle(rect), &RndLocOk);
 }
 
-bool CanPlaceWallTrap(int xp, int yp)
+bool CanPlaceWallTrap(Point pos)
 {
-	if (dObject[xp][yp] != 0)
+	if (dObject[pos.x][pos.y] != 0)
 		return false;
-	if (TileContainsSetPiece({ xp, yp }))
+	if (TileContainsSetPiece(pos))
 		return false;
 
-	return TileHasAny(dPiece[xp][yp], TileProperties::Trap);
+	return TileHasAny(pos, TileProperties::Trap);
 }
 
 void InitRndLocObj(int min, int max, _object_id objtype)
@@ -498,7 +498,7 @@ void AddObjTraps()
 				while (IsTileNotSolid({ xp, j }))
 					xp--;
 
-				if (!CanPlaceWallTrap(xp, j) || i - xp <= 1)
+				if (!CanPlaceWallTrap({ xp, j }) || i - xp <= 1)
 					continue;
 
 				trapObject = AddObject(OBJ_TRAPL, { xp, j });
@@ -507,7 +507,7 @@ void AddObjTraps()
 				while (IsTileNotSolid({ i, yp }))
 					yp--;
 
-				if (!CanPlaceWallTrap(i, yp) || j - yp <= 1)
+				if (!CanPlaceWallTrap({ i, yp }) || j - yp <= 1)
 					continue;
 
 				trapObject = AddObject(OBJ_TRAPR, { i, yp });
@@ -1288,27 +1288,33 @@ void AddBarrel(Object &barrel)
 void AddShrine(Object &shrine)
 {
 	shrine._oRndSeed = AdvanceRndSeed();
-	bool slist[NumberOfShrineTypes];
-
 	shrine._oPreFlag = true;
 
-	int shrines = gbIsHellfire ? NumberOfShrineTypes : 26;
+	int shrineCount = gbIsHellfire ? NumberOfShrineTypes : 26;
+	bool slist[NumberOfShrineTypes] = {};
 
-	for (int j = 0; j < shrines; j++) {
-		slist[j] = j != ShrineEnchanted || IsAnyOf(leveltype, DTYPE_CATHEDRAL, DTYPE_CATACOMBS);
-		if (gbIsMultiplayer && shrineavail[j] == ShrineTypeSingle) {
-			slist[j] = false;
-		} else if (!gbIsMultiplayer && shrineavail[j] == ShrineTypeMulti) {
-			slist[j] = false;
+	for (int i = 0; i < shrineCount; i++) {
+		bool isShrineAvailable = true;
+
+		if (gbIsMultiplayer) {
+			isShrineAvailable = (shrineavail[i] != ShrineTypeSingle);
+		} else {
+			isShrineAvailable = (shrineavail[i] != ShrineTypeMulti);
 		}
+
+		bool isEnchantedShrine = (i == ShrineEnchanted);
+		bool isCorrectLevelType = IsAnyOf(leveltype, DTYPE_CATHEDRAL, DTYPE_CATACOMBS);
+
+		slist[i] = isShrineAvailable && (!isEnchantedShrine || isCorrectLevelType);
 	}
 
-	int val;
+	int selectedIndex;
 	do {
-		val = GenerateRnd(shrines);
-	} while (!slist[val]);
+		selectedIndex = GenerateRnd(shrineCount);
+	} while (!slist[selectedIndex]);
 
-	shrine._oVar1 = val;
+	shrine._oVar1 = selectedIndex;
+
 	if (!FlipCoin()) {
 		shrine._oAnimFrame = 12;
 		shrine._oAnimLen = 22;
@@ -3123,7 +3129,7 @@ void OperateBookcase(Object &bookcase, bool sendmsg, bool sendLootMsg)
 	CreateTypeItem(bookcase.position, false, ItemType::Misc, IMISC_BOOK, sendLootMsg, false);
 
 	if (Quests[Q_ZHAR].IsAvailable()) {
-		auto &zhar = Monsters[MAX_PLRS];
+		Monster &zhar = Monsters[MAX_PLRS];
 		if (zhar.mode == MonsterMode::Stand // prevents playing the "angry" message for the second time if zhar got aggroed by losing vision and talking again
 		    && zhar.uniqueType == UniqueMonsterType::Zhar
 		    && zhar.activeForTicks == UINT8_MAX
