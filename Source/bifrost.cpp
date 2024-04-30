@@ -76,6 +76,8 @@ void bifrost::startServer()
 			response = handleDataBuffer();
 		} else if (strcmp(buffer, "_HEALTHY_") == 0) {
 			response = handleHealthyBuffer();
+		} else if (strcmp(buffer, "_TEST_") == 0) {
+			response = handleTestBuffer();
 		} else {
 			response = "{}";
 		}
@@ -291,6 +293,12 @@ std::string bifrost::handleHealthyBuffer()
 	}
 
 	response += "}\n";
+	return response;
+}
+
+std::string bifrost::handleTestBuffer()
+{
+	std::string response = "{\"test-response\": 200}";
 	return response;
 }
 

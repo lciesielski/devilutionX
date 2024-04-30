@@ -13,6 +13,7 @@ public:
 private:
 	static std::string handleDataBuffer();
 	static std::string handleHealthyBuffer();
+	static std::string handleTestBuffer();
 	static std::string getLvlDownPosition();
 	static std::string getPositionsAroundPlayer();
 	static std::string getMonstersOnLevel();
