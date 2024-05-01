@@ -326,6 +326,11 @@ void OptionSharewareChanged()
 	gbIsSpawn = *sgOptions.StartUp.shareware;
 }
 
+void OptionMachineLearningChanged()
+{
+	gbIsLearning = *sgOptions.StartUp.machineLearning;
+}
+
 void OptionAudioChanged()
 {
 	effects_cleanup_sfx();
@@ -574,6 +579,7 @@ StartUpOptions::StartUpOptions()
               { StartUpGameMode::Hellfire, N_("Hellfire") },
           })
     , shareware("Shareware", OptionEntryFlags::NeedDiabloMpq | OptionEntryFlags::RecreateUI, N_("Restrict to Shareware"), N_("Makes the game compatible with the demo. Enables multiplayer with friends who don't own a full copy of Diablo."), false)
+    , machineLearning("Machine Learning", OptionEntryFlags::NeedDiabloMpq | OptionEntryFlags::RecreateUI, N_("Set Machine Learning Context"), N_("Enables flag for machine learning context. Simplifies some areas of the game upon game initialization."), false)
     , diabloIntro("Diablo Intro", OptionEntryFlags::OnlyDiablo, N_("Intro"), N_("Shown Intro cinematic."), StartUpIntro::Once,
           {
               { StartUpIntro::Off, N_("OFF") },
@@ -595,12 +601,14 @@ StartUpOptions::StartUpOptions()
 {
 	gameMode.SetValueChangedCallback(OptionGameModeChanged);
 	shareware.SetValueChangedCallback(OptionSharewareChanged);
+	machineLearning.SetValueChangedCallback(OptionMachineLearningChanged);
 }
 std::vector<OptionEntryBase *> StartUpOptions::GetEntries()
 {
 	return {
 		&gameMode,
 		&shareware,
+		&machineLearning,
 		&diabloIntro,
 		&hellfireIntro,
 		&splash,
