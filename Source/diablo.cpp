@@ -170,6 +170,7 @@ char gszVersionNumber[64] = "internal version unknown";
 bool gbGameLoopStartup;
 bool forceSpawn;
 bool forceDiablo;
+bool forceLearning;
 int sgnTimeoutCurs;
 bool gbShowIntro = true;
 /** To know if these things have been done when we get to the diablo_deinit() function */
@@ -1092,6 +1093,8 @@ void DiabloParseFlags(int argc, char **argv)
 			EnableFrameCount();
 		} else if (arg == "--spawn") {
 			forceSpawn = true;
+		} else if (arg == "--learning") {
+			forceLearning = true;
 		} else if (arg == "--diablo") {
 			forceDiablo = true;
 		} else if (arg == "--hellfire") {
@@ -1194,6 +1197,8 @@ void DiabloInit()
 		gbIsHellfire = false;
 	if (forceHellfire)
 		gbIsHellfire = true;
+	if (forceLearning || *sgOptions.StartUp.machineLearning)
+		gbIsLearning = true;
 
 	gbIsHellfireSaveGame = gbIsHellfire;
 
