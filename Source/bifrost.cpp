@@ -11,6 +11,26 @@ const int dy[8] = { 1, 1, 1, 0, 0, -1, -1, -1 }; // Relative y coordinates
 
 const DWORD processId = GetCurrentProcessId();
 
+std::string getItemName(char buffer[255])
+{
+	char itemName[255] = {};
+	int j = 0;
+	bool foundNewline = false;
+
+	for (int i = 0; i < 255 && buffer[i] != '\0'; ++i) {
+		if (foundNewline) {
+			itemName[j++] = buffer[i];
+		} else if (buffer[i] == '\n') {
+			foundNewline = true;
+		}
+	}
+
+	itemName[j] = '\0';
+
+	std::string item(itemName);
+	return item;
+}
+
 void bifrost::startServer()
 {
 	WSADATA wsaData;
@@ -72,12 +92,16 @@ void bifrost::startServer()
 
 		std::string response;
 
-		if (strcmp(buffer, "_DATA_") == 0) {
+		if (strncmp(buffer, "_DATA_", 6) == 0) {
 			response = handleDataBuffer();
-		} else if (strcmp(buffer, "_HEALTHY_") == 0) {
+		} else if (strncmp(buffer, "_HEALTHY_", 9) == 0) {
 			response = handleHealthyBuffer();
-		} else if (strcmp(buffer, "_TEST_") == 0) {
+		} else if (strncmp(buffer, "_TEST_", 6) == 0) {
 			response = handleTestBuffer();
+		} else if (strncmp(buffer, "_SPAWN_ITEM_", 12) == 0) {
+			response = spawnItem(buffer);
+		} else if (strncmp(buffer, "_SPAWN_UNIQUE_", 14) == 0) {
+			response = spawnUnique(buffer);
 		} else {
 			response = "{}";
 		}
@@ -356,6 +380,22 @@ std::string bifrost::handleHealthyBuffer()
 std::string bifrost::handleTestBuffer()
 {
 	std::string response = "{\"test-response\": 200}";
+	return response;
+}
+
+std::string bifrost::spawnItem(char buffer[255])
+{
+	std::string itemName = getItemName(buffer);
+	std::string response = "{\"item-name\": \"" + itemName + "\"}";
+	DebugSpawnItem(itemName);
+	return response;
+}
+
+std::string bifrost::spawnUnique(char buffer[255])
+{
+	std::string uniqueName = getItemName(buffer);
+	std::string response = "{\"unique-name\": \"" + uniqueName + "\"}";
+	DebugSpawnUniqueItem(uniqueName);
 	return response;
 }
 

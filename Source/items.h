@@ -570,10 +570,8 @@ bool ApplyOilToItem(Item &item, Player &player);
  */
 void UpdateHellfireFlag(Item &item, const char *identifiedItemName);
 
-#ifdef _DEBUG
 std::string DebugSpawnItem(std::string itemName);
 std::string DebugSpawnUniqueItem(std::string itemName);
-#endif
 /* data */
 
 extern int MaxGold;

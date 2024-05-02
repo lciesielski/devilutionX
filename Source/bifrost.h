@@ -22,6 +22,9 @@ private:
 	static std::string getHighlightedMonster();
 	static std::string getHighlightedObject();
 	static std::string getTheButcher();
+
+	static std::string spawnItem(char buffer[255]);
+	static std::string spawnUnique(char buffer[255]);
 };
 
 } // namespace devilution

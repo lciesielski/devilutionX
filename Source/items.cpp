@@ -4642,7 +4642,6 @@ void PutItemRecord(uint32_t nSeed, uint16_t wCI, int nIndex)
 	}
 }
 
-#ifdef _DEBUG
 std::mt19937 BetterRng;
 std::string DebugSpawnItem(std::string itemName)
 {
@@ -4769,7 +4768,6 @@ std::string DebugSpawnUniqueItem(std::string itemName)
 
 	return StrCat("Item generated successfully - iterations: ", i);
 }
-#endif
 
 bool Item::isUsable() const
 {
