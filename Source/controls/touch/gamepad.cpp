@@ -15,6 +15,11 @@ namespace {
 
 constexpr double Pi = 3.141592653589793;
 
+int roundToInt(double value)
+{
+	return static_cast<int>(round(value));
+}
+
 constexpr bool PointsUp(double angle)
 {
 	constexpr double UpAngle = Pi / 2;
@@ -53,7 +58,7 @@ void InitializeVirtualGamepad()
 	int inputMargin = screenPixels / 10;
 	int menuButtonWidth = screenPixels / 10;
 	int directionPadSize = screenPixels / 4;
-	int padButtonSize = round(1.1 * screenPixels / 10);
+	int padButtonSize = roundToInt(1.1 * screenPixels / 10);
 	int padButtonSpacing = inputMargin / 3;
 
 	float hdpi;
@@ -71,11 +76,11 @@ void InitializeVirtualGamepad()
 		vdpi *= static_cast<float>(gnScreenHeight) / clientHeight;
 
 		float dpi = std::min(hdpi, vdpi);
-		inputMargin = round(0.25 * dpi);
-		menuButtonWidth = round(0.2 * dpi);
-		directionPadSize = round(dpi);
-		padButtonSize = round(0.3 * dpi);
-		padButtonSpacing = round(0.1 * dpi);
+		inputMargin = roundToInt(0.25 * dpi);
+		menuButtonWidth = roundToInt(0.2 * dpi);
+		directionPadSize = roundToInt(dpi);
+		padButtonSize = roundToInt(0.3 * dpi);
+		padButtonSpacing = roundToInt(0.1 * dpi);
 
 		if (*sgOptions.Graphics.adjustControlsForTablets)
 		{
@@ -95,7 +100,7 @@ void InitializeVirtualGamepad()
 	int rightMarginMenuButton2 = rightMarginMenuButton3 + menuPanelButtonSpacing + menuPanelButtonSize.width;
 	int rightMarginMenuButton1 = rightMarginMenuButton2 + menuPanelButtonSpacing + menuPanelButtonSize.width;
 
-	int padButtonAreaWidth = round(std::sqrt(2) * (padButtonSize + padButtonSpacing));
+	int padButtonAreaWidth = roundToInt(std::sqrt(2) * (padButtonSize + padButtonSpacing));
 
 	int padButtonRight = gnScreenWidth - inputMargin - padButtonSize / 2;
 	int padButtonLeft = padButtonRight - padButtonAreaWidth;
@@ -140,7 +145,7 @@ void InitializeVirtualGamepad()
 	directionPad.position = directionPadArea.position;
 
 	int standButtonDiagonalOffset = directionPadArea.radius + padButtonSpacing / 2 + padButtonSize / 2;
-	int standButtonOffset = round(standButtonDiagonalOffset / std::sqrt(2));
+	int standButtonOffset = roundToInt(standButtonDiagonalOffset / std::sqrt(2));
 	Circle &standButtonArea = VirtualGamepadState.standButton.area;
 	standButtonArea.position.x = directionPadArea.position.x - standButtonOffset;
 	standButtonArea.position.y = directionPadArea.position.y + standButtonOffset;
@@ -233,8 +238,8 @@ void VirtualDirectionPad::UpdatePosition(Point touchCoordinates)
 		int x = diff.deltaX;
 		int y = diff.deltaY;
 		double dist = sqrt(x * x + y * y);
-		x = round(x * area.radius / dist);
-		y = round(y * area.radius / dist);
+		x = roundToInt(x * area.radius / dist);
+		y = roundToInt(y * area.radius / dist);
 		position.x = area.position.x + x;
 		position.y = area.position.y + y;
 	}

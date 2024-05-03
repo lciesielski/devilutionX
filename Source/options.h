@@ -530,6 +530,8 @@ struct GameplayOptions : OptionCategoryBase {
 	OptionEntryBoolean runInTown;
 	/** @brief Do not let the mouse leave the application window. */
 	OptionEntryBoolean grabInput;
+	/** @brief Pause the game when focus is lost. */
+	OptionEntryBoolean pauseOnFocusLoss;
 	/** @brief Enable the Theo quest. */
 	OptionEntryBoolean theoQuest;
 	/** @brief Enable the cow quest. */
@@ -644,6 +646,10 @@ struct LanguageOptions : OptionCategoryBase {
 };
 
 constexpr uint32_t KeymapperMouseButtonMask = 1 << 31;
+constexpr uint32_t MouseScrollUpButton = 65536 | KeymapperMouseButtonMask;
+constexpr uint32_t MouseScrollDownButton = 65537 | KeymapperMouseButtonMask;
+constexpr uint32_t MouseScrollLeftButton = 65538 | KeymapperMouseButtonMask;
+constexpr uint32_t MouseScrollRightButton = 65539 | KeymapperMouseButtonMask;
 
 /** The Keymapper maps keys to actions. */
 struct KeymapperOptions : OptionCategoryBase {

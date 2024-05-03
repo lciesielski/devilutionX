@@ -19,9 +19,11 @@
 #include "DiabloUI/text_input.hpp"
 #include "DiabloUI/ui_flags.hpp"
 #include "engine.h"
+#include "engine/displacement.hpp"
 #include "engine/point.hpp"
 #include "engine/rectangle.hpp"
 #include "engine/render/text_render.hpp"
+#include "engine/size.hpp"
 #include "panels/ui_panels.hpp"
 #include "spelldat.h"
 #include "spells.h"
@@ -32,6 +34,10 @@
 namespace devilution {
 
 constexpr Size SidePanelSize { 320, 352 };
+
+// Info box displacement of the top-left corner relative to GetMainPanel().position.
+constexpr Displacement InfoBoxTopLeft { 177, 46 };
+constexpr Size InfoBoxSize { 288, 64 };
 
 extern bool dropGoldFlag;
 extern TextInputCursorState GoldDropCursor;
@@ -77,10 +83,6 @@ inline bool CanPanelsCoverView()
 	const Rectangle &mainPanel = GetMainPanel();
 	return GetScreenWidth() <= mainPanel.size.width && GetScreenHeight() <= SidePanelSize.height + mainPanel.size.height;
 }
-void DrawSpellList(const Surface &out);
-void SetSpell();
-void SetSpeedSpell(size_t slot);
-void ToggleSpell(size_t slot);
 
 void AddPanelString(std::string_view str);
 void AddPanelString(std::string &&str);
@@ -126,12 +128,6 @@ void DrawFlaskValues(const Surface &out, Point pos, int currValue, int maxValue)
  * @see Player::UpdateHitPointPercentage() and Player::UpdateManaPercentage()
  */
 void control_update_life_mana();
-
-/**
- * @brief draws the current right mouse button spell.
- * @param out screen buffer representing the main UI panel
- */
-void DrawSpell(const Surface &out);
 
 void InitControlPan();
 void DrawCtrlPan(const Surface &out);

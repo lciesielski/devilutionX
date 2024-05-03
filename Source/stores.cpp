@@ -310,18 +310,18 @@ void PrintStoreItem(const Item &item, int l, UiFlags flags, bool cursIndent = fa
 		else if (item._iClass == ICLASS_ARMOR)
 			productLine = fmt::format(fmt::runtime(_("Armor: {:d}  ")), item._iAC);
 		if (item._iMaxDur != DUR_INDESTRUCTIBLE && item._iMaxDur != 0)
-			productLine += fmt::format(fmt::runtime(_("Dur: {:d}/{:d},  ")), item._iDurability, item._iMaxDur);
+			productLine += fmt::format(fmt::runtime(_("Dur: {:d}/{:d}")), item._iDurability, item._iMaxDur);
 		else
-			productLine.append(_("Indestructible,  "));
+			productLine.append(_("Indestructible"));
 	}
 
 	int8_t str = item._iMinStr;
 	uint8_t mag = item._iMinMag;
 	int8_t dex = item._iMinDex;
 
-	if (str == 0 && mag == 0 && dex == 0) {
-		productLine.append(_("No required attributes"));
-	} else {
+	if (str != 0 || mag != 0 || dex != 0) {
+		if (!productLine.empty())
+			productLine.append(_(",  "));
 		productLine.append(_("Required:"));
 		if (str != 0)
 			productLine.append(fmt::format(fmt::runtime(_(" {:d} Str")), str));
@@ -370,7 +370,7 @@ void ScrollVendorStore(Item *itemData, int storeLimit, int idx, int selling = tr
 		if (stextsel != -1 && !stext[stextsel].isSelectable() && stextsel != BackButtonLine())
 			stextsel = stextdown;
 	} else {
-		stextsmax = std::max(storeLimit - 4, 0);
+		stextsmax = std::max(static_cast<int>(storeLimit) - 4, 0);
 	}
 }
 
@@ -393,7 +393,7 @@ void StartSmith()
 
 void ScrollSmithBuy(int idx)
 {
-	ScrollVendorStore(smithitem, std::size(smithitem), idx);
+	ScrollVendorStore(smithitem, static_cast<int>(std::size(smithitem)), idx);
 }
 
 uint32_t TotalPlayerGold()
@@ -439,7 +439,7 @@ void ScrollSmithPremiumBuy(int boughtitems)
 			boughtitems--;
 	}
 
-	ScrollVendorStore(premiumitems, std::size(premiumitems), idx);
+	ScrollVendorStore(premiumitems, static_cast<int>(std::size(premiumitems)), idx);
 }
 
 bool StartSmithPremiumBuy()
@@ -689,7 +689,7 @@ void StartWitch()
 
 void ScrollWitchBuy(int idx)
 {
-	ScrollVendorStore(witchitem, std::size(witchitem), idx);
+	ScrollVendorStore(witchitem, static_cast<int>(std::size(witchitem)), idx);
 }
 
 void WitchBookLevel(Item &bookItem)
@@ -1038,7 +1038,7 @@ void StartHealer()
 
 void ScrollHealerBuy(int idx)
 {
-	ScrollVendorStore(healitem, std::size(healitem), idx);
+	ScrollVendorStore(healitem, static_cast<int>(std::size(healitem)), idx);
 }
 
 void StartHealerBuy()
@@ -2135,7 +2135,7 @@ void SetupTownStores()
 				l = i;
 		}
 	} else {
-		SetRndSeed(glSeedTbl[currlevel] * SDL_GetTicks());
+		SetRndSeed(DungeonSeeds[currlevel] * SDL_GetTicks());
 	}
 
 	l = std::clamp(l + 2, 6, 16);

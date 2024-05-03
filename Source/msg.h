@@ -416,6 +416,10 @@ enum _cmd_id : uint8_t {
 	CMD_NAKRUL,
 	CMD_OPENHIVE,
 	CMD_OPENGRAVE,
+	// Spawn a monster at target location.
+	//
+	// body (TCmdSpawnMonster)
+	CMD_SPAWNMONSTER,
 	// Fake command; set current player for succeeding mega pkt buffer messages.
 	//
 	// body (TFakeCmdPlr)
@@ -512,6 +516,16 @@ struct TCmdGolem {
 	int8_t _menemy;
 	int32_t _mhitpoints;
 	uint8_t _currlevel;
+};
+
+struct TCmdSpawnMonster {
+	_cmd_id bCmd;
+	uint8_t x;
+	uint8_t y;
+	Direction dir;
+	uint16_t typeIndex;
+	uint16_t monsterId;
+	uint32_t seed;
 };
 
 struct TCmdQuest {
@@ -712,21 +726,16 @@ struct TPkt {
 };
 #pragma pack(pop)
 
-struct TBuffer {
-	uint32_t dwNextWriteOffset;
-	std::byte bData[4096];
-};
-
 extern uint8_t gbBufferMsgs;
 extern int dwRecCount;
 
 void PrepareItemForNetwork(const Item &item, TItem &messageItem);
 void PrepareEarForNetwork(const Item &item, TEar &ear);
 void RecreateItem(const Player &player, const TItem &messageItem, Item &item);
-void msg_send_drop_pkt(int pnum, int reason);
+void msg_send_drop_pkt(uint8_t pnum, int reason);
 bool msg_wait_resync();
 void run_delta_info();
-void DeltaExportData(int pnum);
+void DeltaExportData(uint8_t pnum);
 void DeltaSyncJunk();
 void delta_init();
 void DeltaClearLevel(uint8_t level);
@@ -743,7 +752,8 @@ void DeltaLoadLevel();
 void ClearLastSentPlayerCmd();
 void NetSendCmd(bool bHiPri, _cmd_id bCmd);
 void NetSendCmdGolem(uint8_t mx, uint8_t my, Direction dir, uint8_t menemy, int hp, uint8_t cl);
-void NetSendCmdLoc(size_t playerId, bool bHiPri, _cmd_id bCmd, Point position);
+void NetSendCmdSpawnMonster(Point position, Direction dir, uint16_t typeIndex, uint16_t monsterId, uint32_t seed);
+void NetSendCmdLoc(uint8_t playerId, bool bHiPri, _cmd_id bCmd, Point position);
 void NetSendCmdLocParam1(bool bHiPri, _cmd_id bCmd, Point position, uint16_t wParam1);
 void NetSendCmdLocParam2(bool bHiPri, _cmd_id bCmd, Point position, uint16_t wParam1, uint16_t wParam2);
 void NetSendCmdLocParam3(bool bHiPri, _cmd_id bCmd, Point position, uint16_t wParam1, uint16_t wParam2, uint16_t wParam3);
@@ -764,6 +774,6 @@ void NetSendCmdDamage(bool bHiPri, const Player &player, uint32_t dwDam, DamageT
 void NetSendCmdMonDmg(bool bHiPri, uint16_t wMon, uint32_t dwDam);
 void NetSendCmdString(uint32_t pmask, const char *pszStr);
 void delta_close_portal(const Player &player);
-size_t ParseCmd(size_t pnum, const TCmd *pCmd);
+size_t ParseCmd(uint8_t pnum, const TCmd *pCmd);
 
 } // namespace devilution

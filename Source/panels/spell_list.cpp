@@ -274,6 +274,13 @@ void SetSpeedSpell(size_t slot)
 		return;
 	}
 	Player &myPlayer = *MyPlayer;
+
+	if (myPlayer._pSplHotKey[slot] == pSpell && myPlayer._pSplTHotKey[slot] == pSplType) {
+		// Unset spell hotkey
+		myPlayer._pSplHotKey[slot] = SpellID::Invalid;
+		return;
+	}
+
 	for (size_t i = 0; i < NumHotkeys; ++i) {
 		if (myPlayer._pSplHotKey[i] == pSpell && myPlayer._pSplTHotKey[i] == pSplType)
 			myPlayer._pSplHotKey[i] = SpellID::Invalid;
@@ -282,7 +289,7 @@ void SetSpeedSpell(size_t slot)
 	myPlayer._pSplTHotKey[slot] = pSplType;
 }
 
-void ToggleSpell(size_t slot)
+bool IsValidSpeedSpell(size_t slot)
 {
 	uint64_t spells;
 
@@ -290,7 +297,7 @@ void ToggleSpell(size_t slot)
 
 	const SpellID spellId = myPlayer._pSplHotKey[slot];
 	if (!IsValidSpell(spellId)) {
-		return;
+		return false;
 	}
 
 	switch (myPlayer._pSplTHotKey[slot]) {
@@ -307,11 +314,17 @@ void ToggleSpell(size_t slot)
 		spells = myPlayer._pISpells;
 		break;
 	case SpellType::Invalid:
-		return;
+		return false;
 	}
 
-	if ((spells & GetSpellBitmask(spellId)) != 0) {
-		myPlayer._pRSpell = spellId;
+	return (spells & GetSpellBitmask(spellId)) != 0;
+}
+
+void ToggleSpell(size_t slot)
+{
+	if (IsValidSpeedSpell(slot)) {
+		Player &myPlayer = *MyPlayer;
+		myPlayer._pRSpell = myPlayer._pSplHotKey[slot];
 		myPlayer._pRSplType = myPlayer._pSplTHotKey[slot];
 		RedrawEverything();
 	}

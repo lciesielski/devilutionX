@@ -165,7 +165,7 @@ void FindItemOrObject()
 
 			continue;
 		}
-		auto &item = Items[itemId];
+		Item &item = Items[itemId];
 		if (item.isEmpty() || item._iSelFlag == 0) {
 			continue;
 		}
@@ -221,6 +221,8 @@ void CheckTownersNearby()
 		int distance = GetDistance(Towners[i].position, 2);
 		if (distance == 0)
 			continue;
+		if (!IsTownerPresent(Towners[i]._ttype))
+			continue;
 		pcursmonst = i;
 	}
 }
@@ -264,7 +266,7 @@ void FindRangedTarget()
 
 	for (size_t i = 0; i < ActiveMonsterCount; i++) {
 		int mi = ActiveMonsters[i];
-		const auto &monster = Monsters[mi];
+		const Monster &monster = Monsters[mi];
 
 		if (!CanTargetMonster(monster))
 			continue;
@@ -330,7 +332,7 @@ void FindMeleeTarget()
 
 				if (dMonster[dx][dy] != 0) {
 					const int mi = std::abs(dMonster[dx][dy]) - 1;
-					const auto &monster = Monsters[mi];
+					const Monster &monster = Monsters[mi];
 					if (CanTargetMonster(monster)) {
 						const bool newCanTalk = CanTalkToMonst(monster);
 						if (pcursmonst != -1 && !canTalk && newCanTalk)
@@ -1015,7 +1017,7 @@ void InventoryMove(AxisDirection dir)
 	}
 
 	if (mousePos == MousePosition) {
-		return; // Avoid wobeling when scalled
+		return; // Avoid wobbling when scaled
 	}
 
 	SetCursorPos(mousePos);

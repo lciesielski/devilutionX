@@ -8,6 +8,8 @@
 #include <gtest/gtest.h>
 #include <picosha2.h>
 
+#include "cursor.h"
+#include "init.h"
 #include "loadsave.h"
 #include "pack.h"
 #include "pfile.h"
@@ -360,11 +362,19 @@ void AssertPlayer(Player &player)
 
 TEST(Writehero, pfile_write_hero)
 {
+	LoadCoreArchives();
+	LoadGameArchives();
+
+	// The tests need spawn.mpq or diabdat.mpq
+	// Please provide them so that the tests can run successfully
+	ASSERT_TRUE(HaveSpawn() || HaveDiabdat());
+
 	paths::SetPrefPath(".");
 	std::remove("multi_0.sv");
 
 	gbVanilla = true;
 	gbIsHellfire = false;
+	gbIsSpawn = false;
 	gbIsMultiplayer = true;
 	gbIsHellfireSaveGame = false;
 	leveltype = DTYPE_TOWN;
@@ -387,8 +397,9 @@ TEST(Writehero, pfile_write_hero)
 	pfile_write_hero();
 
 	const char *path = "multi_0.sv";
-	uintmax_t size;
-	ASSERT_TRUE(GetFileSize(path, &size));
+	uintmax_t fileSize;
+	ASSERT_TRUE(GetFileSize(path, &fileSize));
+	size_t size = static_cast<size_t>(fileSize);
 	FILE *f = std::fopen(path, "rb");
 	ASSERT_TRUE(f != nullptr);
 	std::unique_ptr<char[]> data { new char[size] };

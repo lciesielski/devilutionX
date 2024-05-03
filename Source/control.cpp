@@ -269,7 +269,7 @@ void PrintInfo(const Surface &out)
 		return;
 
 	const int space[] = { 18, 12, 6, 3, 0 };
-	Rectangle infoArea { GetMainPanel().position + Displacement { 177, 46 }, { 288, 60 } };
+	Rectangle infoArea { GetMainPanel().position + InfoBoxTopLeft, InfoBoxSize };
 
 	const auto newLineCount = static_cast<int>(c_count(InfoString.str(), '\n'));
 	const int spaceIndex = std::min(4, newLineCount);
@@ -536,7 +536,7 @@ std::string TextCmdLevelSeed(const std::string_view parameter)
 
 	return StrCat(
 	    "Seedinfo for ", levelType, " ", currlevel, "\n",
-	    "seed: ", glSeedTbl[currlevel], "\n",
+	    "seed: ", DungeonSeeds[currlevel], "\n",
 #ifdef _DEBUG
 	    "Mid1: ", glMid1Seed[currlevel], "\n",
 	    "Mid2: ", glMid2Seed[currlevel], "\n",
@@ -546,7 +546,7 @@ std::string TextCmdLevelSeed(const std::string_view parameter)
 	    "\n",
 	    gameId, " ", mode, "\n",
 	    questPool, " quests: ", questFlags, "\n",
-	    "Storybook: ", glSeedTbl[16]);
+	    "Storybook: ", DungeonSeeds[16]);
 }
 
 std::vector<TextCmdItem> TextCmdList = {
@@ -710,11 +710,7 @@ void CalculatePanelAreas()
 
 bool IsChatAvailable()
 {
-#ifdef _DEBUG
-	return true;
-#else
 	return gbIsMultiplayer;
-#endif
 }
 
 void FocusOnCharInfo()
@@ -1037,6 +1033,7 @@ void CycleAutomapType()
 void CheckPanelInfo()
 {
 	panelflag = false;
+	InfoString = StringOrView {};
 	const Point mainPanelPosition = GetMainPanel().position;
 	for (int i = 0; i < PanelButtonIndex; i++) {
 		int xend = PanBtnPos[i].x + mainPanelPosition.x + PanBtnPos[i].w;
@@ -1191,7 +1188,7 @@ void FreeControlPan()
 
 void DrawInfoBox(const Surface &out)
 {
-	DrawPanelBox(out, { 177, 62, 288, 63 }, GetMainPanel().position + Displacement { 177, 46 });
+	DrawPanelBox(out, { 177, 62, InfoBoxSize.width, InfoBoxSize.height }, GetMainPanel().position + InfoBoxTopLeft);
 	if (!panelflag && !trigflag && pcursinvitem == -1 && pcursstashitem == StashStruct::EmptyCell && !spselflag) {
 		InfoString = StringOrView {};
 		InfoColor = UiFlags::ColorWhite;
@@ -1216,7 +1213,7 @@ void DrawInfoBox(const Surface &out)
 			GetObjectStr(*ObjectUnderCursor);
 		if (pcursmonst != -1) {
 			if (leveltype != DTYPE_TOWN) {
-				const auto &monster = Monsters[pcursmonst];
+				const Monster &monster = Monsters[pcursmonst];
 				InfoColor = UiFlags::ColorWhite;
 				InfoString = monster.name();
 				if (monster.isUnique()) {
