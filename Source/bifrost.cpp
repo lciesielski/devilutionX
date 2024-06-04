@@ -147,7 +147,7 @@ std::string bifrost::handleDataBuffer()
 		response += getTheButcher();
 		response += getHighlightedObject();
 		response += getHighlightedMonster();
-		response += getMonstersOnLevel();
+		//response += getMonstersOnLevel();
 
 		response += "\"pauseMode\": " + std::to_string(PauseMode) + ",\n";
 		response += "\"processId\": " + std::to_string(processId) + "\n";
