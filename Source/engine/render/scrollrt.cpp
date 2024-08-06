@@ -8,6 +8,8 @@
 #include <cmath>
 #include <cstdint>
 
+#include <ankerl/unordered_dense.h>
+
 #include "DiabloUI/ui_flags.hpp"
 #include "automap.h"
 #include "controls/plrctrls.h"
@@ -45,6 +47,7 @@
 #include "qol/xpbar.h"
 #include "stores.h"
 #include "towners.h"
+#include "utils/attributes.h"
 #include "utils/bitset2d.hpp"
 #include "utils/display.h"
 #include "utils/endian.hpp"
@@ -82,7 +85,7 @@ namespace {
 /**
  * @brief Contains all Missile at rendering position
  */
-std::unordered_multimap<WorldTilePosition, Missile *> MissilesAtRenderingTile;
+ankerl::unordered_dense::map<WorldTilePosition, std::vector<Missile *>> MissilesAtRenderingTile;
 
 /**
  * @brief Could the missile (at the next game tick) collide? This method is a simplified version of CheckMissileCol (for example without random).
@@ -162,7 +165,7 @@ void UpdateMissilesRendererData()
 
 	for (auto &m : Missiles) {
 		UpdateMissileRendererData(m);
-		MissilesAtRenderingTile.insert(std::make_pair(m.position.tileForRendering, &m));
+		MissilesAtRenderingTile[m.position.tileForRendering].push_back(&m);
 	}
 }
 
@@ -288,9 +291,10 @@ void DrawMissilePrivate(const Surface &out, const Missile &missile, Point target
  */
 void DrawMissile(const Surface &out, WorldTilePosition tilePosition, Point targetBufferPosition, bool pre)
 {
-	const auto [begin, end] = MissilesAtRenderingTile.equal_range(tilePosition);
-	for (auto it = begin; it != end; ++it) {
-		DrawMissilePrivate(out, *it->second, targetBufferPosition, pre);
+	const auto it = MissilesAtRenderingTile.find(tilePosition);
+	if (it == MissilesAtRenderingTile.end()) return;
+	for (Missile *missile : it->second) {
+		DrawMissilePrivate(out, *missile, targetBufferPosition, pre);
 	}
 }
 
@@ -758,6 +762,8 @@ void DrawDungeon(const Surface &out, Point tilePosition, Point targetBufferPosit
 				case Direction::SouthEast:
 					tempTargetBufferPosition += { -TILE_WIDTH / 2, -TILE_HEIGHT / 2 };
 					break;
+				default:
+					DVL_UNREACHABLE();
 				}
 				tempTilePosition += Opposite(player->_pdir);
 			} else if (player->_pmode == PM_WALK_SIDEWAYS && player->_pdir == Direction::East) {
@@ -793,6 +799,8 @@ void DrawDungeon(const Surface &out, Point tilePosition, Point targetBufferPosit
 				case Direction::SouthEast:
 					tempTargetBufferPosition += { -TILE_WIDTH / 2, -TILE_HEIGHT / 2 };
 					break;
+				default:
+					DVL_UNREACHABLE();
 				}
 				tempTilePosition += Opposite(monster->direction);
 			} else if (monster->mode == MonsterMode::MoveSideways && monster->direction == Direction::East) {
@@ -894,6 +902,10 @@ void DrawTileContent(const Surface &out, Point tilePosition, Point targetBufferP
 {
 	// Keep evaluating until MicroTiles can't affect screen
 	rows += MicroTileLen;
+
+#ifdef _DEBUG
+	DebugCoordsMap.reserve(rows * columns);
+#endif
 
 	for (int i = 0; i < rows; i++) {
 		bool skip = false;
@@ -1631,8 +1643,8 @@ void scrollrt_draw_game_screen()
 
 	const Surface &out = GlobalBackBuffer();
 	UndrawCursor(out);
-	DrawMain(hgt, false, false, false, false, false);
 	DrawCursor(out);
+	DrawMain(hgt, false, false, false, false, false);
 
 	RenderPresent();
 }

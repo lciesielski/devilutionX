@@ -7,7 +7,6 @@ set(libdevilutionx_SRCS
   automap.cpp
   bifrost.cpp
   capture.cpp
-  codec.cpp
   control.cpp
   cursor.cpp
   dead.cpp
@@ -48,7 +47,6 @@ set(libdevilutionx_SRCS
   portal.cpp
   quests.cpp
   restrict.cpp
-  sha.cpp
   spelldat.cpp
   spells.cpp
   stores.cpp
@@ -178,25 +176,20 @@ set(libdevilutionx_SRCS
 
   utils/cel_to_clx.cpp
   utils/cl2_to_clx.cpp
-  utils/console.cpp
   utils/display.cpp
-  utils/file_util.cpp
-  utils/format_int.cpp
   utils/language.cpp
   utils/logged_fstream.cpp
   utils/paths.cpp
-  utils/parse_int.cpp
   utils/pcx_to_clx.cpp
   utils/sdl_bilinear_scale.cpp
   utils/sdl_thread.cpp
-  utils/str_cat.cpp
-  utils/str_case.cpp
   utils/surface_to_clx.cpp
-  utils/timer.cpp
-  utils/utf8.cpp)
+  utils/timer.cpp)
 
 # These files are responsible for most of the runtime in Debug mode.
 # Apply some optimizations to them even in Debug mode to get reasonable performance.
+#
+# They also perform better with -O2 rather than -O3 even in Release mode.
 set(_optimize_in_debug_srcs
   engine/render/clx_render.cpp
   engine/render/dun_render.cpp
@@ -204,9 +197,9 @@ set(_optimize_in_debug_srcs
   utils/cel_to_clx.cpp
   utils/cl2_to_clx.cpp
   utils/pcx_to_clx.cpp)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set_source_files_properties(${_optimize_in_debug_srcs} PROPERTIES COMPILE_OPTIONS "-O2;--param=max-vartrack-size=900000000")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   set_source_files_properties(${_optimize_in_debug_srcs} PROPERTIES COMPILE_OPTIONS "-O2")
 endif()
 
@@ -226,10 +219,6 @@ endif()
 
 if(IOS)
   list(APPEND libdevilutionx_SRCS platform/ios/ios_paths.m)
-endif()
-
-if(USE_SDL1)
-  list(APPEND libdevilutionx_SRCS utils/sdl2_to_1_2_backports.cpp)
 endif()
 
 if(NOT DISABLE_DEMOMODE)
@@ -282,6 +271,17 @@ if(SCREEN_READER_INTEGRATION)
   )
 endif()
 
+if(DEVILUTIONX_SCREENSHOT_FORMAT STREQUAL DEVILUTIONX_SCREENSHOT_FORMAT_PCX)
+  list(APPEND libdevilutionx_SRCS
+    utils/surface_to_pcx.cpp
+  )
+endif()
+if(DEVILUTIONX_SCREENSHOT_FORMAT STREQUAL DEVILUTIONX_SCREENSHOT_FORMAT_PNG)
+  list(APPEND libdevilutionx_SRCS
+    utils/surface_to_png.cpp
+  )
+endif()
+
 add_devilutionx_library(libdevilutionx OBJECT ${libdevilutionx_SRCS})
 target_include_directories(libdevilutionx PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -318,6 +318,78 @@ if(SCREEN_READER_INTEGRATION AND WIN32)
   target_compile_definitions(libdevilutionx PRIVATE Tolk)
 endif()
 
+add_devilutionx_object_library(libdevilutionx_utils_console
+  utils/console.cpp
+)
+
+if(USE_SDL1)
+  add_devilutionx_library(libdevilutionx_sdl2_to_1_2_backports STATIC
+    utils/sdl2_to_1_2_backports.cpp
+  )
+  target_link_libraries(libdevilutionx_sdl2_to_1_2_backports PRIVATE
+    libdevilutionx_utils_console
+    fmt::fmt
+  )
+  target_link_libraries(DevilutionX::SDL INTERFACE
+    libdevilutionx_sdl2_to_1_2_backports
+  )
+endif()
+
+add_devilutionx_object_library(libdevilutionx_codec
+  codec.cpp
+  sha.cpp
+)
+target_link_libraries(libdevilutionx_codec PRIVATE
+  DevilutionX::SDL
+  libdevilutionx_log
+)
+
+add_devilutionx_object_library(libdevilutionx_file_util
+  utils/file_util.cpp
+)
+target_link_libraries(libdevilutionx_file_util PRIVATE
+  DevilutionX::SDL
+  libdevilutionx_log
+  ${DEVILUTIONX_PLATFORM_LINK_LIBRARIES}
+)
+
+add_devilutionx_object_library(libdevilutionx_format_int
+  utils/format_int.cpp
+)
+target_link_libraries(libdevilutionx_format_int PUBLIC
+  libdevilutionx_strings
+)
+
+add_library(libdevilutionx_log INTERFACE)
+target_include_directories(libdevilutionx_log INTERFACE
+  ${PROJECT_SOURCE_DIR}/Source)
+target_link_libraries(libdevilutionx_log INTERFACE
+  DevilutionX::SDL
+  fmt::fmt
+  libdevilutionx_strings
+)
+
+add_devilutionx_object_library(libdevilutionx_parse_int
+  utils/parse_int.cpp
+)
+target_link_libraries(libdevilutionx_parse_int PUBLIC
+  tl
+)
+
+add_devilutionx_object_library(libdevilutionx_utf8
+  utils/utf8.cpp
+)
+target_link_libraries(libdevilutionx_utf8 PRIVATE
+  hoehrmann_utf8
+)
+
+add_devilutionx_object_library(libdevilutionx_strings
+  utils/str_cat.cpp
+  utils/str_case.cpp
+)
+target_link_libraries(libdevilutionx_strings PRIVATE
+  fmt::fmt)
+
 target_link_libraries(libdevilutionx PUBLIC
   Threads::Threads
   DevilutionX::SDL
@@ -325,7 +397,14 @@ target_link_libraries(libdevilutionx PUBLIC
   libsmackerdec
   simpleini::simpleini
   tl
-  hoehrmann_utf8
+  unordered_dense::unordered_dense
+  libdevilutionx_codec
+  libdevilutionx_format_int
+  libdevilutionx_file_util
+  libdevilutionx_parse_int
+  libdevilutionx_strings
+  libdevilutionx_utf8
+  libdevilutionx_utils_console
   ${libdevilutionx_DEPS}
 )
 

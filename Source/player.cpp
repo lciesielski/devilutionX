@@ -307,7 +307,9 @@ void DeadItem(Player &player, Item &&itm, Displacement direction)
 	if (itm.isEmpty())
 		return;
 
-	Point target = player.position.tile + direction;
+	const Point playerTile = player.position.tile;
+	const Point target = playerTile + direction;
+
 	if (direction != Displacement { 0, 0 } && ItemSpaceOk(target)) {
 		RespawnDeadItem(std::move(itm), target);
 		return;
@@ -316,7 +318,7 @@ void DeadItem(Player &player, Item &&itm, Displacement direction)
 	for (int k = 1; k < 50; k++) {
 		for (int j = -k; j <= k; j++) {
 			for (int i = -k; i <= k; i++) {
-				Point next = player.position.tile + Displacement { i, j };
+				Point next = playerTile + Displacement { i, j };
 				if (ItemSpaceOk(next)) {
 					RespawnDeadItem(std::move(itm), next);
 					return;
@@ -2134,9 +2136,13 @@ void LoadPlrGFX(Player &player, player_graphic graphic)
 	*fmt::format_to(pszName, R"(plrgfx\{0}\{1}\{1}{2})", path, std::string_view(prefix, 3), szCel) = 0;
 	const uint16_t animationWidth = GetPlayerSpriteWidth(cls, graphic, animWeaponId);
 	animationData.sprites = LoadCl2Sheet(pszName, animationWidth);
-	std::optional<std::array<uint8_t, 256>> trn = GetClassTRN(player);
-	if (trn) {
-		ClxApplyTrans(*animationData.sprites, trn->data());
+	std::optional<std::array<uint8_t, 256>> graphicTRN = GetPlayerGraphicTRN(pszName);
+	if (graphicTRN) {
+		ClxApplyTrans(*animationData.sprites, graphicTRN->data());
+	}
+	std::optional<std::array<uint8_t, 256>> classTRN = GetClassTRN(player);
+	if (classTRN) {
+		ClxApplyTrans(*animationData.sprites, classTRN->data());
 	}
 }
 

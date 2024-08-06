@@ -470,7 +470,7 @@ void CreateHalfSizeItemSprites()
 {
 	if (HalfSizeItemSprites != nullptr)
 		return;
-	const int numInvItems = pCursCels->numSprites() - (static_cast<size_t>(CURSOR_FIRSTITEM) - 1)
+	const uint32_t numInvItems = pCursCels->numSprites() - (static_cast<uint32_t>(CURSOR_FIRSTITEM) - 1)
 	    + (gbIsHellfire ? pCursCels2->numSprites() : 0);
 	HalfSizeItemSprites = new OptionalOwnedClxSpriteList[numInvItems];
 	HalfSizeItemSpritesRed = new OptionalOwnedClxSpriteList[numInvItems];
@@ -577,7 +577,7 @@ void NewCursor(int cursId)
 void DrawSoftwareCursor(const Surface &out, Point position, int cursId)
 {
 	const ClxSprite sprite = GetInvItemSprite(cursId);
-	if (!MyPlayer->HoldItem.isEmpty()) {
+	if (cursId >= CURSOR_FIRSTITEM && !MyPlayer->HoldItem.isEmpty()) {
 		const auto &heldItem = MyPlayer->HoldItem;
 		ClxDrawOutline(out, GetOutlineColor(heldItem, true), position, sprite);
 		DrawItem(heldItem, out, position, sprite);

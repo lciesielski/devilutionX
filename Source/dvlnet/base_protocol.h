@@ -1,13 +1,15 @@
 #pragma once
 
-#include <map>
 #include <memory>
 #include <set>
 #include <string>
 
+#include <ankerl/unordered_dense.h>
+
 #include "dvlnet/base.h"
 #include "dvlnet/packet.h"
 #include "player.h"
+#include "utils/algorithm/container.hpp"
 #include "utils/log.hpp"
 
 namespace devilution::net {
@@ -15,8 +17,8 @@ namespace devilution::net {
 template <class P>
 class base_protocol : public base {
 public:
-	int create(std::string addrstr) override;
-	int join(std::string addrstr) override;
+	int create(std::string_view addrstr) override;
+	int join(std::string_view addrstr) override;
 	tl::expected<void, PacketError> poll() override;
 	tl::expected<void, PacketError> send(packet &pkt) override;
 	void DisconnectNet(plr_t plr) override;
@@ -50,7 +52,7 @@ private:
 		std::vector<std::string> playerNames;
 		endpoint_t peer;
 	};
-	std::map</*name*/ std::string, GameListValue> game_list;
+	ankerl::unordered_dense::map</*name*/ std::string, GameListValue> game_list;
 	std::array<Peer, MAX_PLRS> peers;
 	bool isGameHost_;
 
@@ -161,7 +163,7 @@ tl::expected<void, PacketError> base_protocol<P>::wait_join()
 }
 
 template <class P>
-int base_protocol<P>::create(std::string addrstr)
+int base_protocol<P>::create(std::string_view addrstr)
 {
 	gamename = addrstr;
 	isGameHost_ = true;
@@ -183,7 +185,7 @@ int base_protocol<P>::create(std::string addrstr)
 }
 
 template <class P>
-int base_protocol<P>::join(std::string addrstr)
+int base_protocol<P>::join(std::string_view addrstr)
 {
 	gamename = addrstr;
 	isGameHost_ = false;
@@ -535,6 +537,7 @@ std::vector<GameInfo> base_protocol<P>::get_gamelist()
 		const auto &[gameData, players, _] = gameInfo;
 		ret.push_back(GameInfo { name, gameData, players });
 	}
+	c_sort(ret, [](const GameInfo &a, const GameInfo &b) { return a.name < b.name; });
 	return ret;
 }
 

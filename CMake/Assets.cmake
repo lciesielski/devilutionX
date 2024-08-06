@@ -2,7 +2,7 @@ if(NOT DEFINED DEVILUTIONX_ASSETS_OUTPUT_DIRECTORY)
   set(DEVILUTIONX_ASSETS_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets")
 endif()
 
-set(devilutionx_langs bg cs da de el es fr hr hu it ja ko pl pt_BR ro ru uk sv zh_CN zh_TW)
+set(devilutionx_langs bg cs da de el es fr hr hu it ja ko pl pt_BR ro ru uk sv tr zh_CN zh_TW)
 if(USE_GETTEXT_FROM_VCPKG)
   # vcpkg doesn't add its own tools directory to the search path
   list(APPEND Gettext_ROOT ${CMAKE_CURRENT_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/tools/gettext/bin)
@@ -123,6 +123,7 @@ set(devilutionx_assets
   fonts/grayui.trn
   fonts/orange.trn
   fonts/red.trn
+  fonts/tr/12-00.clx
   fonts/whitegold.trn
   fonts/white.trn
   fonts/yellow.trn
@@ -148,6 +149,9 @@ set(devilutionx_assets
   nlevels/cutl6w.clx
   nlevels/l5data/cornerstone.dun
   nlevels/l5data/uberroom.dun
+  plrgfx/warrior/whu/whufm.trn
+  plrgfx/warrior/whu/whulm.trn
+  plrgfx/warrior/whu/whuqm.trn
   txtdata/Experience.tsv
   txtdata/classes/barbarian/attributes.tsv
   txtdata/classes/bard/attributes.tsv
@@ -162,6 +166,7 @@ set(devilutionx_assets
   txtdata/missiles/missile_sprites.tsv
   txtdata/monsters/monstdat.tsv
   txtdata/monsters/unique_monstdat.tsv
+  txtdata/objects/objdat.tsv
   txtdata/sound/effects.tsv
   txtdata/spells/spelldat.tsv
   ui_art/diablo.pal
