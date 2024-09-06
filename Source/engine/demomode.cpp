@@ -270,6 +270,7 @@ bool CreateSdlEvent(const DemoMsg &dmsg, SDL_Event &event, uint16_t &modState)
 	case DemoMsg::KeyUpEvent:
 		event.type = type == DemoMsg::KeyDownEvent ? SDL_KEYDOWN : SDL_KEYUP;
 		event.key.state = type == DemoMsg::KeyDownEvent ? SDL_PRESSED : SDL_RELEASED;
+		event.key.keysym.scancode = SDL_GetScancodeFromKey(dmsg.key.sym);
 		event.key.keysym.sym = dmsg.key.sym;
 		event.key.keysym.mod = dmsg.key.mod;
 		return true;
@@ -647,7 +648,7 @@ bool GetRunGameLoop(bool &drawGame, bool &processInput)
 		app_fatal("Unexpected event demo message in GetRunGameLoop");
 	LogDemoMessage(dmsg);
 	if (Timedemo) {
-		// disable additonal rendering to speedup replay
+		// disable additional rendering to speedup replay
 		drawGame = dmsg.type == DemoMsg::GameTick && !HeadlessMode;
 	} else {
 		int currentTickCount = SDL_GetTicks();
@@ -848,7 +849,7 @@ void NotifyGameLoopEnd()
 		HeroCompareResult compareResult = pfile_compare_hero_demo(DemoNumber, false);
 		switch (compareResult.status) {
 		case HeroCompareResult::ReferenceNotFound:
-			SDL_Log("Timedemo: No final comparison cause reference is not present.");
+			SDL_Log("Timedemo: No final comparison because reference is not present.");
 			break;
 		case HeroCompareResult::Same:
 			SDL_Log("Timedemo: Same outcome as initial run. :)");

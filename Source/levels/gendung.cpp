@@ -1,19 +1,29 @@
 #include "levels/gendung.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <stack>
+#include <utility>
 #include <vector>
 
+#include <ankerl/unordered_dense.h>
+
+#include "engine/clx_sprite.hpp"
 #include "engine/load_file.hpp"
 #include "engine/random.hpp"
+#include "engine/world_tile.hpp"
 #include "init.h"
 #include "levels/drlg_l1.h"
 #include "levels/drlg_l2.h"
 #include "levels/drlg_l3.h"
 #include "levels/drlg_l4.h"
+#include "levels/reencode_dun_cels.hpp"
 #include "levels/town.h"
 #include "lighting.h"
 #include "options.h"
+#include "utils/bitset2d.hpp"
+#include "utils/log.hpp"
 
 namespace devilution {
 
@@ -490,12 +500,26 @@ void SetDungeonMicros()
 	size_t tileCount;
 	std::unique_ptr<uint16_t[]> levelPieces = LoadMinData(tileCount);
 
-	for (size_t i = 0; i < tileCount / blocks; i++) {
-		uint16_t *pieces = &levelPieces[blocks * i];
-		for (size_t block = 0; block < blocks; block++) {
-			DPieceMicros[i].mt[block] = LevelCelBlock { SDL_SwapLE16(pieces[blocks - 2 + (block & 1) - (block & 0xE)]) };
+	ankerl::unordered_dense::map<uint16_t, DunFrameInfo> frameToTypeMap;
+	frameToTypeMap.reserve(4096);
+	for (size_t levelPieceId = 0; levelPieceId < tileCount / blocks; levelPieceId++) {
+		uint16_t *pieces = &levelPieces[blocks * levelPieceId];
+		for (uint32_t block = 0; block < blocks; block++) {
+			const LevelCelBlock levelCelBlock { SDL_SwapLE16(pieces[blocks - 2 + (block & 1) - (block & 0xE)]) };
+			DPieceMicros[levelPieceId].mt[block] = levelCelBlock;
+			if (levelCelBlock.hasValue()) {
+				if (const auto it = frameToTypeMap.find(levelCelBlock.frame()); it == frameToTypeMap.end()) {
+					frameToTypeMap.emplace_hint(it, levelCelBlock.frame(),
+					    DunFrameInfo { static_cast<uint8_t>(block), levelCelBlock.type(), SOLData[levelPieceId] });
+				}
+			}
 		}
 	}
+	std::vector<std::pair<uint16_t, DunFrameInfo>> frameToTypeList = std::move(frameToTypeMap).extract();
+	c_sort(frameToTypeList, [](const std::pair<uint16_t, DunFrameInfo> &a, const std::pair<uint16_t, DunFrameInfo> &b) {
+		return a.first < b.first;
+	});
+	ReencodeDungeonCels(pDungeonCels, frameToTypeList);
 }
 
 void DRLG_InitTrans()
@@ -770,6 +794,19 @@ void FloodTransparencyValues(uint8_t floorID)
 		}
 		yy += 2;
 	}
+}
+
+tl::expected<dungeon_type, std::string> ParseDungeonType(std::string_view value)
+{
+	if (value.empty()) return DTYPE_NONE;
+	if (value == "DTYPE_TOWN") return DTYPE_TOWN;
+	if (value == "DTYPE_CATHEDRAL") return DTYPE_CATHEDRAL;
+	if (value == "DTYPE_CATACOMBS") return DTYPE_CATACOMBS;
+	if (value == "DTYPE_CAVES") return DTYPE_CAVES;
+	if (value == "DTYPE_HELL") return DTYPE_HELL;
+	if (value == "DTYPE_NEST") return DTYPE_NEST;
+	if (value == "DTYPE_CRYPT") return DTYPE_CRYPT;
+	return tl::make_unexpected("Unknown enum value");
 }
 
 } // namespace devilution

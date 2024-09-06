@@ -7,7 +7,7 @@
 		"simpleini",
 		"lua"
 	],
-	"builtin-baseline": "37c3e63a1306562f7f59c4c3c8892ddd50fdf992",
+	"builtin-baseline": "1318ab14aae14db20085441cd71366891a9c9d0c",
 	"features": {
 		"sdl1": {
 			"description": "Use SDL1.2 instead of SDL2",
@@ -32,7 +32,7 @@
 		},
 		"tests": {
 			"description": "Build tests",
-			"dependencies": [ "gtest" ]
+			"dependencies": [ "gtest", "benchmark" ]
 		}
 	}
 }

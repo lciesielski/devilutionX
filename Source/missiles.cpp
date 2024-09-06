@@ -11,6 +11,7 @@
 
 #include "control.h"
 #include "controls/plrctrls.h"
+#include "crawl.hpp"
 #include "cursor.h"
 #include "dead.h"
 #ifdef _DEBUG
@@ -470,8 +471,8 @@ void CheckMissileCol(Missile &missile, DamageType damageType, int minDamage, int
 	}
 
 	const MissileData &missileData = GetMissileData(missile._mitype);
-	if (missile._mirange == 0 && missileData.miSFX != SfxID::None)
-		PlaySfxLoc(missileData.miSFX, missile.position.tile);
+	if (missile._mirange == 0 && missileData.hitSound != SfxID::None)
+		PlaySfxLoc(missileData.hitSound, missile.position.tile);
 }
 
 bool MoveMissile(Missile &missile, tl::function_ref<bool(Point)> checkTile, bool ifCheckTileFailsDontMoveToTile = false)
@@ -689,16 +690,17 @@ bool GuardianTryFireAt(Missile &missile, Point target)
 	return true;
 }
 
-bool GrowWall(int id, Point position, Point target, MissileID type, int spellLevel, int damage)
+bool GrowWall(int id, Point position, Point target, MissileID type, int spellLevel, int damage, bool skipWall = false)
 {
-	int dp = dPiece[position.x][position.y];
+	[[maybe_unused]] int dp = dPiece[position.x][position.y];
 	assert(dp <= MAXTILES && dp >= 0);
 
 	if (TileHasAny(position, TileProperties::BlockMissile) || !InDungeonBounds(target)) {
 		return false;
 	}
 
-	AddMissile(position, position, Direction::South, type, TARGET_BOTH, id, damage, spellLevel);
+	if (!skipWall)
+		AddMissile(position, position, Direction::South, type, TARGET_BOTH, id, damage, spellLevel);
 	return true;
 }
 
@@ -719,7 +721,7 @@ void SpawnLightning(Missile &missile, int dam)
 	MoveMissile(
 	    missile, [&](Point tile) {
 		    assert(InDungeonBounds(tile));
-		    int pn = dPiece[tile.x][tile.y];
+		    [[maybe_unused]] int pn = dPiece[tile.x][tile.y];
 		    assert(pn >= 0 && pn <= MAXTILES);
 
 		    if (!missile.IsTrap() || tile != missile.position.start) {
@@ -2432,11 +2434,11 @@ void AddIdentify(Missile &missile, AddMissileParameter & /*parameter*/)
 	}
 }
 
-void AddFireWallControl(Missile &missile, AddMissileParameter &parameter)
+void AddWallControl(Missile &missile, AddMissileParameter &parameter)
 {
 	std::optional<Point> spreadPosition = FindClosestValidPosition(
 	    [start = missile.position.start](Point target) {
-		    return start != target && IsTileNotSolid(target) && !IsObjectAtPosition(target) && LineClearMissile(start, target);
+		    return start != target && !TileHasAny(target, TileProperties::BlockMissile) && LineClearMissile(start, target);
 	    },
 	    parameter.dst, 0, 5);
 
@@ -2726,7 +2728,7 @@ Missile *AddMissile(WorldTilePosition src, WorldTilePosition dst, Direction midi
 	missile.position.tile = src;
 	missile.position.start = src;
 	missile._miAnimAdd = 1;
-	missile._miAnimType = missileData.mFileNum;
+	missile._miAnimType = missileData.graphic;
 	missile._miDrawFlag = missileData.isDrawn();
 	missile._mlid = NO_LIGHT;
 	missile.lastCollisionTargetHash = 0;
@@ -2744,7 +2746,7 @@ Missile *AddMissile(WorldTilePosition src, WorldTilePosition dst, Direction midi
 		SetMissDir(missile, midir);
 
 	if (!lSFX) {
-		lSFX = missileData.mlSFX;
+		lSFX = missileData.castSound;
 	}
 
 	if (*lSFX != SfxID::None) {
@@ -2752,7 +2754,7 @@ Missile *AddMissile(WorldTilePosition src, WorldTilePosition dst, Direction midi
 	}
 
 	AddMissileParameter parameter = { dst, midir, parent, false };
-	missileData.mAddProc(missile, parameter);
+	missileData.addFn(missile, parameter);
 	if (parameter.spellFizzled) {
 		return nullptr;
 	}
@@ -3173,43 +3175,6 @@ void ProcessSearch(Missile &missile)
 	PlaySfxLoc(SfxID::SpellEnd, player.position.tile);
 	if (&player == MyPlayer)
 		AutoMapShowItems = false;
-}
-
-void ProcessLightningWallControl(Missile &missile)
-{
-	missile._mirange--;
-	if (missile._mirange == 0) {
-		missile._miDelFlag = true;
-		return;
-	}
-
-	int id = missile._misource;
-	int lvl = !missile.IsTrap() ? Players[id].getCharacterLevel() : 0;
-	int dmg = 16 * (GenerateRndSum(10, 2) + lvl + 2);
-
-	{
-		Point position = { missile.var1, missile.var2 };
-		Point target = position + static_cast<Direction>(missile.var3);
-
-		if (!missile.limitReached && GrowWall(id, position, target, MissileID::LightningWall, missile._mispllvl, dmg)) {
-			missile.var1 = target.x;
-			missile.var2 = target.y;
-		} else {
-			missile.limitReached = true;
-		}
-	}
-
-	{
-		Point position = { missile.var5, missile.var6 };
-		Point target = position + static_cast<Direction>(missile.var4);
-
-		if (missile.var7 == 0 && GrowWall(id, position, target, MissileID::LightningWall, missile._mispllvl, dmg)) {
-			missile.var5 = target.x;
-			missile.var6 = target.y;
-		} else {
-			missile.var7 = 1;
-		}
-	}
 }
 
 void ProcessNovaCommon(Missile &missile, MissileID projectileType)
@@ -3723,7 +3688,46 @@ void ProcessRhino(Missile &missile)
 	PutMissile(missile);
 }
 
-void ProcessFireWallControl(Missile &missile)
+/*
+ * @brief Moves the control missile towards the right and grows walls.
+ * @param missile The control missile.
+ * @param type The missile ID of the wall missile.
+ * @param dmg The damage of the wall missile.
+ */
+static void ProcessWallControlLeft(Missile &missile, const MissileID type, const int dmg)
+{
+	const Point leftPosition = { missile.var1, missile.var2 };
+	const Point target = leftPosition + static_cast<Direction>(missile.var3);
+
+	if (!missile.limitReached && GrowWall(missile._misource, leftPosition, target, type, missile._mispllvl, dmg)) {
+		missile.var1 = target.x;
+		missile.var2 = target.y;
+	} else {
+		missile.limitReached = true;
+	}
+}
+
+/*
+ * @brief Moves the control missile towards the right and grows walls.
+ * @param missile The control missile.
+ * @param type The missile ID of the wall missile.
+ * @param dmg The damage of the wall missile.
+ * @param skipTile Should the tile be skipped.
+ */
+static void ProcessWallControlRight(Missile &missile, const MissileID type, const int dmg, const bool skipWall = false)
+{
+	const Point rightPosition = { missile.var5, missile.var6 };
+	const Point target = rightPosition + static_cast<Direction>(missile.var4);
+
+	if (missile.var7 == 0 && GrowWall(missile._misource, rightPosition, target, type, missile._mispllvl, dmg, skipWall)) {
+		missile.var5 = target.x;
+		missile.var6 = target.y;
+	} else {
+		missile.var7 = 1;
+	}
+}
+
+void ProcessWallControl(Missile &missile)
 {
 	missile._mirange--;
 	if (missile._mirange == 0) {
@@ -3731,31 +3735,29 @@ void ProcessFireWallControl(Missile &missile)
 		return;
 	}
 
-	int id = missile._misource;
+	MissileID type;
+	const int sourceIdx = missile._misource;
+	int lvl = 0;
+	int dmg = 0;
 
-	{
-		Point position = { missile.var1, missile.var2 };
-		Point target = position + static_cast<Direction>(missile.var3);
-
-		if (!missile.limitReached && GrowWall(id, position, target, MissileID::FireWall, missile._mispllvl, 0)) {
-			missile.var1 = target.x;
-			missile.var2 = target.y;
-		} else {
-			missile.limitReached = true;
-		}
+	switch (missile._mitype) {
+	case MissileID::FireWallControl:
+		type = MissileID::FireWall;
+		break;
+	case MissileID::LightningWallControl:
+		type = MissileID::LightningWall;
+		lvl = !missile.IsTrap() ? Players[sourceIdx].getCharacterLevel() : 0;
+		dmg = 16 * (GenerateRndSum(10, 2) + lvl + 2);
+		break;
+	default:
+		app_fatal("ProcessWallControl: Invalid missile type for control missile");
 	}
 
-	{
-		Point position = { missile.var5, missile.var6 };
-		Point target = position + static_cast<Direction>(missile.var4);
+	const Point leftPosition = { missile.var1, missile.var2 };
+	const Point rightPosition = { missile.var5, missile.var6 };
 
-		if (missile.var7 == 0 && GrowWall(id, position, target, MissileID::FireWall, missile._mispllvl, 0)) {
-			missile.var5 = target.x;
-			missile.var6 = target.y;
-		} else {
-			missile.var7 = 1;
-		}
-	}
+	ProcessWallControlLeft(missile, type, dmg);
+	ProcessWallControlRight(missile, type, dmg, leftPosition == rightPosition);
 }
 
 void ProcessInfravision(Missile &missile)
@@ -3805,7 +3807,7 @@ void ProcessFlameWaveControl(Missile &missile)
 	Direction dira = Left(Left(sd));
 	Direction dirb = Right(Right(sd));
 	Point na = src + sd;
-	int pn = dPiece[na.x][na.y];
+	[[maybe_unused]] int pn = dPiece[na.x][na.y];
 	assert(pn >= 0 && pn <= MAXTILES);
 	if (!TileHasAny(na, TileProperties::BlockMissile)) {
 		Direction pdir = Players[id]._pdir;
@@ -4154,8 +4156,8 @@ void ProcessMissiles()
 
 	for (auto &missile : Missiles) {
 		const MissileData &missileData = GetMissileData(missile._mitype);
-		if (missileData.mProc != nullptr)
-			missileData.mProc(missile);
+		if (missileData.processFn != nullptr)
+			missileData.processFn(missile);
 		if (missile._miAnimFlags == MissileGraphicsFlags::NotAnimated)
 			continue;
 

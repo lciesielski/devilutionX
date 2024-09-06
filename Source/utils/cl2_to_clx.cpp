@@ -11,24 +11,6 @@
 
 namespace devilution {
 
-namespace {
-
-constexpr size_t FrameHeaderSize = 10;
-
-struct SkipSize {
-	int_fast16_t wholeLines;
-	int_fast16_t xOffset;
-};
-SkipSize GetSkipSize(int_fast16_t overrun, int_fast16_t srcWidth)
-{
-	SkipSize result;
-	result.wholeLines = overrun / srcWidth;
-	result.xOffset = overrun - srcWidth * result.wholeLines;
-	return result;
-}
-
-} // namespace
-
 uint16_t Cl2ToClx(const uint8_t *data, size_t size,
     PointerOrValue<uint16_t> widthOrWidths, std::vector<uint8_t> &clxData)
 {
@@ -74,6 +56,7 @@ uint16_t Cl2ToClx(const uint8_t *data, size_t size,
 			const uint16_t frameWidth = widthOrWidths.HoldsPointer() ? widthOrWidths.AsPointer()[frame - 1] : widthOrWidths.AsValue();
 
 			const size_t frameHeaderPos = clxData.size();
+			constexpr size_t FrameHeaderSize = 10;
 			clxData.resize(clxData.size() + FrameHeaderSize);
 			WriteLE16(&clxData[frameHeaderPos], FrameHeaderSize);
 			WriteLE16(&clxData[frameHeaderPos + 2], frameWidth);
@@ -85,40 +68,34 @@ uint16_t Cl2ToClx(const uint8_t *data, size_t size,
 			while (src != frameEnd) {
 				auto remainingWidth = static_cast<int_fast16_t>(frameWidth) - xOffset;
 				while (remainingWidth > 0) {
-					const BlitCommand cmd = ClxGetBlitCommand(src);
-					switch (cmd.type) {
-					case BlitType::Transparent:
+					const uint8_t control = *src++;
+					if (!IsClxOpaque(control)) {
 						if (!pixels.empty()) {
 							AppendClxPixelsOrFillRun(pixels.data(), pixels.size(), clxData);
 							pixels.clear();
 						}
-
-						transparentRunWidth += cmd.length;
-						break;
-					case BlitType::Fill:
-					case BlitType::Pixels:
+						transparentRunWidth += control;
+						remainingWidth -= control;
+					} else if (IsClxOpaqueFill(control)) {
 						AppendClxTransparentRun(transparentRunWidth, clxData);
 						transparentRunWidth = 0;
-
-						if (cmd.type == BlitType::Fill) {
-							pixels.insert(pixels.end(), cmd.length, cmd.color);
-						} else { // BlitType::Pixels
-							pixels.insert(pixels.end(), src + 1, cmd.srcEnd);
-						}
-						break;
+						const uint8_t width = GetClxOpaqueFillWidth(control);
+						const uint8_t color = *src++;
+						pixels.insert(pixels.end(), width, color);
+						remainingWidth -= width;
+					} else {
+						AppendClxTransparentRun(transparentRunWidth, clxData);
+						transparentRunWidth = 0;
+						const uint8_t width = GetClxOpaquePixelsWidth(control);
+						pixels.insert(pixels.end(), src, src + width);
+						src += width;
+						remainingWidth -= width;
 					}
-					src = cmd.srcEnd;
-					remainingWidth -= cmd.length;
 				}
 
-				++frameHeight;
-				if (remainingWidth < 0) {
-					const auto skipSize = GetSkipSize(-remainingWidth, static_cast<int_fast16_t>(frameWidth));
-					xOffset = skipSize.xOffset;
-					frameHeight += skipSize.wholeLines;
-				} else {
-					xOffset = 0;
-				}
+				const auto skipSize = GetSkipSize(remainingWidth, static_cast<int_fast16_t>(frameWidth));
+				xOffset = skipSize.xOffset;
+				frameHeight += skipSize.wholeLines;
 			}
 			if (!pixels.empty()) {
 				AppendClxPixelsOrFillRun(pixels.data(), pixels.size(), clxData);

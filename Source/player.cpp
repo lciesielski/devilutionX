@@ -211,11 +211,13 @@ void StartRangeAttack(Player &player, Direction d, WorldTileCoord cx, WorldTileC
 	}
 
 	int8_t skippedAnimationFrames = 0;
+	const auto flags = player._pIFlags;
+
 	if (!gbIsHellfire) {
-		if (includesFirstFrame && HasAnyOf(player._pIFlags, ItemSpecialEffect::QuickAttack | ItemSpecialEffect::FastAttack)) {
+		if (includesFirstFrame && HasAnyOf(flags, ItemSpecialEffect::QuickAttack | ItemSpecialEffect::FastAttack)) {
 			skippedAnimationFrames += 1;
 		}
-		if (HasAnyOf(player._pIFlags, ItemSpecialEffect::FastAttack)) {
+		if (HasAnyOf(flags, ItemSpecialEffect::FastAttack)) {
 			skippedAnimationFrames += 1;
 		}
 	}
@@ -250,8 +252,8 @@ void StartSpell(Player &player, Direction d, WorldTileCoord cx, WorldTileCoord c
 		return;
 	}
 
-	// Checks conditions for spell again, cause initial check was done when spell was queued and the parameters could be changed meanwhile
-	bool isValid = true;
+	// Checks conditions for spell again, because initial check was done when spell was queued and the parameters could be changed meanwhile
+	bool isValid = false;
 	switch (player.queuedSpell.spellType) {
 	case SpellType::Skill:
 	case SpellType::Spell:
@@ -263,8 +265,7 @@ void StartSpell(Player &player, Direction d, WorldTileCoord cx, WorldTileCoord c
 	case SpellType::Charges:
 		isValid = CanUseStaff(player, player.queuedSpell.spellId);
 		break;
-	case SpellType::Invalid:
-		isValid = false;
+	default:
 		break;
 	}
 	if (!isValid)
@@ -293,36 +294,33 @@ void RespawnDeadItem(Item &&itm, Point target)
 		return;
 
 	int ii = AllocateItem();
+	Item &item = Items[ii];
 
 	dItem[target.x][target.y] = ii + 1;
 
-	Items[ii] = itm;
-	Items[ii].position = target;
-	RespawnItem(Items[ii], true);
-	NetSendCmdPItem(false, CMD_SPAWNITEM, target, Items[ii]);
+	item = itm;
+	item.position = target;
+	RespawnItem(item, true);
+	NetSendCmdPItem(false, CMD_SPAWNITEM, target, item);
 }
 
-void DeadItem(Player &player, Item &&itm, Displacement direction)
+void DeadItem(Player &player, Item &&item, Displacement direction)
 {
-	if (itm.isEmpty())
+	if (item.isEmpty())
 		return;
 
-	Point target = player.position.tile + direction;
-	if (direction != Displacement { 0, 0 } && ItemSpaceOk(target)) {
-		RespawnDeadItem(std::move(itm), target);
-		return;
+	const Point playerTile = player.position.tile;
+	if (direction != Displacement { 0, 0 }) {
+		const Point target = playerTile + direction;
+		if (ItemSpaceOk(target)) {
+			RespawnDeadItem(std::move(item), target);
+			return;
+		}
 	}
 
-	for (int k = 1; k < 50; k++) {
-		for (int j = -k; j <= k; j++) {
-			for (int i = -k; i <= k; i++) {
-				Point next = player.position.tile + Displacement { i, j };
-				if (ItemSpaceOk(next)) {
-					RespawnDeadItem(std::move(itm), next);
-					return;
-				}
-			}
-		}
+	std::optional<Point> dropPoint = FindClosestValidPosition(ItemSpaceOk, playerTile, 1, 50);
+	if (dropPoint) {
+		RespawnDeadItem(std::move(item), *dropPoint);
 	}
 }
 
@@ -2134,9 +2132,13 @@ void LoadPlrGFX(Player &player, player_graphic graphic)
 	*fmt::format_to(pszName, R"(plrgfx\{0}\{1}\{1}{2})", path, std::string_view(prefix, 3), szCel) = 0;
 	const uint16_t animationWidth = GetPlayerSpriteWidth(cls, graphic, animWeaponId);
 	animationData.sprites = LoadCl2Sheet(pszName, animationWidth);
-	std::optional<std::array<uint8_t, 256>> trn = GetClassTRN(player);
-	if (trn) {
-		ClxApplyTrans(*animationData.sprites, trn->data());
+	std::optional<std::array<uint8_t, 256>> graphicTRN = GetPlayerGraphicTRN(pszName);
+	if (graphicTRN) {
+		ClxApplyTrans(*animationData.sprites, graphicTRN->data());
+	}
+	std::optional<std::array<uint8_t, 256>> classTRN = GetClassTRN(player);
+	if (classTRN) {
+		ClxApplyTrans(*animationData.sprites, classTRN->data());
 	}
 }
 
@@ -2673,7 +2675,7 @@ StartPlayerKill(Player &player, DeathReason deathReason)
 
 	if (&player != MyPlayer && dropItems) {
 		// Ensure that items are removed for remote players
-		// The dropped items will be synced seperatly (by the remote client)
+		// The dropped items will be synced separately (by the remote client)
 		for (Item &item : player.InvBody) {
 			item.clear();
 		}
@@ -2687,7 +2689,7 @@ StartPlayerKill(Player &player, DeathReason deathReason)
 		SetPlayerOld(player);
 
 		// Only generate drops once (for the local player)
-		// For remote players we get seperated sync messages (by the remote client)
+		// For remote players we get separated sync messages (by the remote client)
 		if (&player == MyPlayer) {
 			RedrawComponent(PanelDrawComponent::Health);
 

@@ -9,10 +9,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <unordered_map>
 #include <utility>
 #include <variant>
 
+#include <ankerl/unordered_dense.h>
 #include <fmt/core.h>
 
 #include "DiabloUI/diabloui.h"
@@ -39,7 +39,7 @@ namespace {
 
 constexpr char32_t ZWSP = U'\u200B'; // Zero-width space
 
-std::unordered_map<uint32_t, OptionalOwnedClxSpriteList> Fonts;
+ankerl::unordered_dense::map<uint32_t, OptionalOwnedClxSpriteList> Fonts;
 
 std::array<int, 6> FontSizes = { 12, 24, 30, 42, 46, 22 };
 constexpr std::array<int, 6> LineHeights = { 12, 26, 38, 42, 50, 22 };
@@ -166,7 +166,8 @@ OptionalClxSpriteList LoadFont(GameFontTables size, text_color color, uint16_t r
 	// Try loading the language-specific variant first:
 	const std::string_view language_code = GetLanguageCode();
 	const std::string_view language_tag = language_code.substr(0, 2);
-	if (language_tag == "zh" || language_tag == "ja" || language_tag == "ko") {
+	if (language_tag == "zh" || language_tag == "ja" || language_tag == "ko"
+	    || (language_tag == "tr" && row == 0)) {
 		GetFontPath(language_code, size, row, ".clx", &path[0]);
 		font = LoadOptionalClx(path);
 	}

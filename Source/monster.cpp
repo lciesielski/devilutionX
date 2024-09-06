@@ -18,6 +18,7 @@
 #include <fmt/format.h>
 
 #include "control.h"
+#include "crawl.hpp"
 #include "cursor.h"
 #include "dead.h"
 #include "engine/load_cl2.hpp"
@@ -41,6 +42,7 @@
 #include "spelldat.h"
 #include "storm/storm_net.hpp"
 #include "towners.h"
+#include "utils/attributes.h"
 #include "utils/cl2_to_clx.hpp"
 #include "utils/file_name_generator.hpp"
 #include "utils/language.h"
@@ -734,6 +736,9 @@ void WalkInDirection(Monster &monster, Direction endDir)
 	case Direction::SouthEast:
 		mode = MonsterMode::MoveSouthwards;
 		break;
+	case Direction::NoDirection:
+		DVL_UNREACHABLE();
+		break;
 	}
 	monster.mode = mode;
 	monster.position.old = monster.position.tile;
@@ -921,10 +926,7 @@ void Teleport(Monster &monster)
 	monster.occupyTile(*position, false);
 	monster.position.old = *position;
 	monster.direction = GetMonsterDirection(monster);
-
-	if (monster.lightId != NO_LIGHT) {
-		ChangeLightXY(monster.lightId, *position);
-	}
+	ChangeLightXY(monster.lightId, *position);
 }
 
 bool IsHardHit(Monster &target, unsigned dam)
@@ -1037,8 +1039,7 @@ bool MonsterWalk(Monster &monster)
 		monster.position.tile.y += monster.var2;
 		// dMonster is set here for backwards compatibility; without it, the monster would be invisible if loaded from a vanilla save.
 		monster.occupyTile(monster.position.tile, false);
-		if (monster.lightId != NO_LIGHT)
-			ChangeLightXY(monster.lightId, monster.position.tile);
+		ChangeLightXY(monster.lightId, monster.position.tile);
 		M_StartStand(monster, monster.direction);
 	} else { // We didn't reach new tile so update monster's "sub-tile" position
 		if (monster.animInfo.tickCounterOfCurrentFrame == 0) {
@@ -1047,8 +1048,7 @@ bool MonsterWalk(Monster &monster)
 		}
 	}
 
-	if (monster.lightId != NO_LIGHT)
-		SyncLightPosition(monster);
+	SyncLightPosition(monster);
 
 	return isAnimationEnd;
 }
@@ -1644,7 +1644,7 @@ bool RandomWalk2(Monster &monster, Direction md)
 }
 
 /**
- * @brief Check if a tile is affected by a spell we are vunerable to
+ * @brief Check if a tile is affected by a spell we are vulnerable to
  */
 bool IsTileSafe(const Monster &monster, Point position)
 {
@@ -3758,6 +3758,7 @@ void M_GetKnockback(Monster &monster)
 	M_ClearSquares(monster);
 	monster.position.old += dir;
 	StartMonsterGotHit(monster);
+	ChangeLightXY(monster.lightId, monster.position.tile);
 }
 
 void M_StartHit(Monster &monster, int dam)

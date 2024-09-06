@@ -9,9 +9,9 @@
 #include <cstdint>
 #include <cstring>
 #include <numeric>
-#include <unordered_map>
 
 #include <SDL.h>
+#include <ankerl/unordered_dense.h>
 #include <fmt/core.h>
 
 #include "automap.h"
@@ -390,8 +390,24 @@ void LoadPlayer(LoadHelper &file, Player &player)
 	file.Skip(3); // Alignment
 	player._pSBkSpell = static_cast<SpellID>(file.NextLE<int32_t>());
 	file.Skip<int8_t>(); // Skip _pSBkSplType
-	for (uint8_t &spellLevel : player._pSplLvl)
-		spellLevel = file.NextLE<uint8_t>();
+
+	// Only read spell levels for learnable spells
+	for (int i = 0; i < static_cast<int>(SpellID::LAST); i++) {
+		auto spl = static_cast<SpellID>(i);
+		if (GetSpellData(spl).sBookLvl != -1)
+			player._pSplLvl[i] = file.NextLE<uint8_t>();
+		else
+			file.Skip<uint8_t>();
+	}
+	// Skip indices that are unused
+	for (int i = static_cast<int>(SpellID::LAST); i < 64; i++)
+		file.Skip<uint8_t>();
+	// These spells are unavailable in Diablo as learnable spells
+	if (!gbIsHellfire) {
+		player._pSplLvl[static_cast<uint8_t>(SpellID::Apocalypse)] = 0;
+		player._pSplLvl[static_cast<uint8_t>(SpellID::Nova)] = 0;
+	}
+
 	file.Skip(7); // Alignment
 	player._pMemSpells = file.NextLE<uint64_t>();
 	player._pAblSpells = file.NextLE<uint64_t>();
@@ -578,7 +594,7 @@ void LoadPlayer(LoadHelper &file, Player &player)
 	// Omit pointer _pBData
 	// Omit pointer pReserved
 
-	// Ensure plrIsOnSetLevel and plrlevel is correctly initialized, cause in vanilla sometimes plrlevel is not updated to setlvlnum
+	// Ensure plrIsOnSetLevel and plrlevel is correctly initialized, because in vanilla sometimes plrlevel is not updated to setlvlnum
 	if (setlevel)
 		player.setLevel(setlvlnum);
 	else
@@ -686,7 +702,7 @@ void LoadMonster(LoadHelper *file, Monster &monster, MonsterConversionData *mons
 	monster.packSize = file->NextLE<uint8_t>();
 	monster.lightId = file->NextLE<int8_t>();
 	if (monster.lightId == 0)
-		monster.lightId = NO_LIGHT; // Correct incorect values in old saves
+		monster.lightId = NO_LIGHT; // Correct incorrect values in old saves
 
 	// Omit pointer name;
 
@@ -1655,7 +1671,7 @@ void SaveQuest(SaveHelper *file, int i)
 	auto &quest = Quests[i];
 
 	file->WriteLE<uint8_t>(quest._qlevel);
-	file->WriteLE<uint8_t>(quest._qidx); // _qtype for compatability, used in DRLG_CheckQuests
+	file->WriteLE<uint8_t>(quest._qidx); // _qtype for compatibility, used in DRLG_CheckQuests
 	file->WriteLE<uint8_t>(quest._qactive);
 	file->WriteLE<uint8_t>(quest._qlvltype);
 	file->WriteLE<int32_t>(quest.position.x);
@@ -1717,7 +1733,7 @@ void SavePortal(SaveHelper *file, int i)
  * @return a map converting from runtime item indexes to the relative position in the save file, used by SaveDroppedItemLocations
  * @see SaveDroppedItemLocations
  */
-std::unordered_map<uint8_t, uint8_t> SaveDroppedItems(SaveHelper &file)
+ankerl::unordered_dense::map<uint8_t, uint8_t> SaveDroppedItems(SaveHelper &file)
 {
 	// Vanilla Diablo/Hellfire initialise the ActiveItems and AvailableItems arrays based on saved data, so write valid values for compatibility
 	for (uint8_t i = 0; i < MAXITEMS; i++)
@@ -1725,7 +1741,9 @@ std::unordered_map<uint8_t, uint8_t> SaveDroppedItems(SaveHelper &file)
 	for (uint8_t i = 0; i < MAXITEMS; i++)
 		file.WriteLE<uint8_t>((i + ActiveItemCount) % MAXITEMS);
 
-	std::unordered_map<uint8_t, uint8_t> itemIndexes = { { 0, 0 } };
+	ankerl::unordered_dense::map<uint8_t, uint8_t> itemIndexes;
+	itemIndexes.reserve(ActiveItemCount + 1);
+	itemIndexes.emplace(0, 0);
 	for (uint8_t i = 0; i < ActiveItemCount; i++) {
 		itemIndexes[ActiveItems[i] + 1] = i + 1;
 		SaveItem(file, Items[ActiveItems[i]]);
@@ -1738,7 +1756,7 @@ std::unordered_map<uint8_t, uint8_t> SaveDroppedItems(SaveHelper &file)
  * @param file interface to the save file
  * @param itemIndexes a map converting from runtime item indexes to the relative position in the save file
  */
-void SaveDroppedItemLocations(SaveHelper &file, const std::unordered_map<uint8_t, uint8_t> &itemIndexes)
+void SaveDroppedItemLocations(SaveHelper &file, const ankerl::unordered_dense::map<uint8_t, uint8_t> &itemIndexes)
 {
 	for (int j = 0; j < MAXDUNY; j++) {
 		for (int i = 0; i < MAXDUNX; i++) // NOLINT(modernize-loop-convert)
@@ -1772,7 +1790,7 @@ void LoadAdditionalMissiles()
 	LoadHelper file(OpenSaveArchive(gSaveNumber), "additionalMissiles");
 
 	if (!file.IsValid()) {
-		// no addtional Missiles saved
+		// no additional Missiles saved
 		return;
 	}
 
@@ -2764,7 +2782,7 @@ void SaveGameData(SaveWriter &saveWriter)
 		}
 		for (int j = 0; j < MAXDUNY; j++) {
 			for (int i = 0; i < MAXDUNX; i++)                                 // NOLINT(modernize-loop-convert)
-				file.WriteLE<int8_t>(TileContainsMissile({ i, j }) ? -1 : 0); // For backwards compatability
+				file.WriteLE<int8_t>(TileContainsMissile({ i, j }) ? -1 : 0); // For backwards compatibility
 		}
 	}
 

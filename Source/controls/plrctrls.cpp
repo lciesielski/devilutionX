@@ -1253,7 +1253,7 @@ void SpellBookMove(AxisDirection dir)
 /**
  * @brief check if stepping in direction (dir) from position is blocked.
  *
- * If you step from A to B, at leat one of the Xs need to be clear:
+ * If you step from A to B, at least one of the Xs need to be clear:
  *
  *  AX
  *  XB
@@ -1484,7 +1484,7 @@ std::string_view ControlTypeToString(ControlTypes controlType)
 
 void LogControlDeviceAndModeChange(ControlTypes newControlDevice, ControlTypes newControlMode)
 {
-	if (SDL_LOG_PRIORITY_VERBOSE < SDL_LogGetPriority(SDL_LOG_CATEGORY_APPLICATION))
+	if (SDL_LogGetPriority(SDL_LOG_CATEGORY_APPLICATION) > SDL_LOG_PRIORITY_VERBOSE)
 		return;
 	if (newControlDevice == ControlDevice && newControlMode == ControlMode)
 		return;
@@ -1514,7 +1514,7 @@ std::string_view GamepadTypeToString(GamepadLayout gamepadLayout)
 
 void LogGamepadChange(GamepadLayout newGamepad)
 {
-	if (SDL_LOG_PRIORITY_VERBOSE < SDL_LogGetPriority(SDL_LOG_CATEGORY_APPLICATION))
+	if (SDL_LogGetPriority(SDL_LOG_CATEGORY_APPLICATION) > SDL_LOG_PRIORITY_VERBOSE)
 		return;
 	constexpr auto DebugChange = [](GamepadLayout before, GamepadLayout after) -> std::string {
 		if (before == after)
@@ -1747,7 +1747,7 @@ void plrctrls_after_check_curs_move()
 		return;
 	}
 
-	// Clear focuse set by cursor
+	// Clear focus set by cursor
 	PlayerUnderCursor = nullptr;
 	pcursmonst = -1;
 	pcursitem = -1;
