@@ -70,25 +70,6 @@ struct RenderSrc {
 	uint_fast16_t width;
 };
 
-struct SkipSize {
-	int_fast16_t wholeLines;
-	int_fast16_t xOffset;
-};
-
-DVL_ALWAYS_INLINE DVL_ATTRIBUTE_HOT SkipSize GetSkipSize(int_fast16_t remainingWidth, int_fast16_t srcWidth)
-{
-	if (remainingWidth < 0) {
-		// If `remainingWidth` is negative, `-remainingWidth` is the overrun.
-		const int_fast16_t overrunLines = -remainingWidth / srcWidth;
-		return {
-			static_cast<int_fast16_t>(1 + overrunLines),
-			static_cast<int_fast16_t>(-remainingWidth - srcWidth * overrunLines)
-		};
-	}
-	// If `remainingWidth` is non-negative, then it is 0, meaning we drew a whole line.
-	return { 1, 0 };
-}
-
 DVL_ALWAYS_INLINE DVL_ATTRIBUTE_HOT const uint8_t *SkipRestOfLineWithOverrun(
     const uint8_t *src, int_fast16_t srcWidth, SkipSize &skipSize)
 {
@@ -250,7 +231,7 @@ void DoRenderBackwards(
 	}
 }
 
-constexpr size_t MaxOutlinePixels = 1536;
+constexpr size_t MaxOutlinePixels = 4096;
 constexpr size_t MaxOutlineSpriteWidth = 253;
 using OutlinePixels = StaticVector<PointOf<uint8_t>, MaxOutlinePixels>;
 using OutlineRowSolidRuns = StaticVector<std::pair<uint8_t, uint8_t>, MaxOutlineSpriteWidth / 2 + 1>;
@@ -603,6 +584,11 @@ void ClxDraw(const Surface &out, Point position, ClxSprite clx)
 void ClxDrawTRN(const Surface &out, Point position, ClxSprite clx, const uint8_t *trn)
 {
 	DoRenderBackwards(out, position, clx.pixelData(), clx.pixelDataSize(), clx.width(), clx.height(), BlitWithMap { trn });
+}
+
+void ClxDrawBlended(const Surface &out, Point position, ClxSprite clx)
+{
+	DoRenderBackwards(out, position, clx.pixelData(), clx.pixelDataSize(), clx.width(), clx.height(), BlitBlended {});
 }
 
 void ClxDrawBlendedTRN(const Surface &out, Point position, ClxSprite clx, const uint8_t *trn)

@@ -41,6 +41,7 @@ if (Gettext_FOUND)
 endif()
 
 set(devilutionx_assets
+  ASSETS_VERSION
   arena/church.dun
   arena/circle_of_death.dun
   arena/hell.dun
@@ -124,6 +125,10 @@ set(devilutionx_assets
   fonts/orange.trn
   fonts/red.trn
   fonts/tr/12-00.clx
+  fonts/tr/24-00.clx
+  fonts/tr/30-00.clx
+  fonts/tr/42-00.clx
+  fonts/tr/46-00.clx
   fonts/whitegold.trn
   fonts/white.trn
   fonts/yellow.trn
@@ -163,6 +168,7 @@ set(devilutionx_assets
   txtdata/items/item_suffixes.tsv
   txtdata/items/itemdat.tsv
   txtdata/items/unique_itemdat.tsv
+  txtdata/missiles/misdat.tsv
   txtdata/missiles/missile_sprites.tsv
   txtdata/monsters/monstdat.tsv
   txtdata/monsters/unique_monstdat.tsv

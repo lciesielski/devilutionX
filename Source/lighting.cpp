@@ -113,33 +113,6 @@ DVL_ALWAYS_INLINE uint8_t GetLight(Point position)
 	return dLight[position.x][position.y];
 }
 
-bool CrawlFlipsX(Displacement mirrored, tl::function_ref<bool(Displacement)> function)
-{
-	for (const Displacement displacement : { mirrored.flipX(), mirrored }) {
-		if (!function(displacement))
-			return false;
-	}
-	return true;
-}
-
-bool CrawlFlipsY(Displacement mirrored, tl::function_ref<bool(Displacement)> function)
-{
-	for (const Displacement displacement : { mirrored, mirrored.flipY() }) {
-		if (!function(displacement))
-			return false;
-	}
-	return true;
-}
-
-bool CrawlFlipsXY(Displacement mirrored, tl::function_ref<bool(Displacement)> function)
-{
-	for (const Displacement displacement : { mirrored.flipX(), mirrored, mirrored.flipXY(), mirrored.flipY() }) {
-		if (!function(displacement))
-			return false;
-	}
-	return true;
-}
-
 bool TileAllowsLight(Point position)
 {
 	if (!InDungeonBounds(position))
@@ -160,39 +133,6 @@ void DoVisionFlags(Point position, MapExplorationType doAutomap, bool visible)
 }
 
 } // namespace
-
-bool DoCrawl(unsigned radius, tl::function_ref<bool(Displacement)> function)
-{
-	if (radius == 0)
-		return function(Displacement { 0, 0 });
-
-	if (!CrawlFlipsY({ 0, static_cast<int>(radius) }, function))
-		return false;
-	for (unsigned i = 1; i < radius; i++) {
-		if (!CrawlFlipsXY({ static_cast<int>(i), static_cast<int>(radius) }, function))
-			return false;
-	}
-	if (radius > 1) {
-		if (!CrawlFlipsXY({ static_cast<int>(radius) - 1, static_cast<int>(radius) - 1 }, function))
-			return false;
-	}
-	if (!CrawlFlipsX({ static_cast<int>(radius), 0 }, function))
-		return false;
-	for (unsigned i = 1; i < radius; i++) {
-		if (!CrawlFlipsXY({ static_cast<int>(radius), static_cast<int>(i) }, function))
-			return false;
-	}
-	return true;
-}
-
-bool DoCrawl(unsigned minRadius, unsigned maxRadius, tl::function_ref<bool(Displacement)> function)
-{
-	for (unsigned i = minRadius; i <= maxRadius; i++) {
-		if (!DoCrawl(i, function))
-			return false;
-	}
-	return true;
-}
 
 void DoUnLight(Point position, uint8_t radius)
 {
@@ -320,6 +260,13 @@ void DoVision(Point position, uint8_t radius, MapExplorationType doAutomap, bool
 	}
 }
 
+void LoadTrns()
+{
+	LoadFileInMem("plrgfx\\infra.trn", InfravisionTable);
+	LoadFileInMem("plrgfx\\stone.trn", StoneTable);
+	LoadFileInMem("gendata\\pause.trn", PauseTable);
+}
+
 void MakeLightTable()
 {
 	// Generate 16 gradually darker translation tables for doing lighting
@@ -378,10 +325,6 @@ void MakeLightTable()
 	// Verify that fully lit and fully dark light table optimizations are correctly enabled/disabled (nullptr = disabled)
 	assert((FullyLitLightTable != nullptr) == (LightTables[0][0] == 0 && std::adjacent_find(LightTables[0].begin(), LightTables[0].end() - 1, [](auto x, auto y) { return (x + 1) != y; }) == LightTables[0].end() - 1));
 	assert((FullyDarkLightTable != nullptr) == (std::all_of(LightTables[LightsMax].begin(), LightTables[LightsMax].end(), [](auto x) { return x == 0; })));
-
-	LoadFileInMem("plrgfx\\infra.trn", InfravisionTable);
-	LoadFileInMem("plrgfx\\stone.trn", StoneTable);
-	LoadFileInMem("gendata\\pause.trn", PauseTable);
 
 	// Generate light falloffs ranges
 	const float maxDarkness = 15;

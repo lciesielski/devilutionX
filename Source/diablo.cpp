@@ -1156,11 +1156,7 @@ void SetApplicationVersions()
 
 void CheckArchivesUpToDate()
 {
-#ifdef UNPACKED_MPQS
-	const bool devilutionxMpqOutOfDate = false;
-#else
-	const bool devilutionxMpqOutOfDate = devilutionx_mpq && (!devilutionx_mpq->HasFile("data\\charbg.clx") || devilutionx_mpq->HasFile("fonts\\12-00.bin"));
-#endif
+	const bool devilutionxMpqOutOfDate = IsDevilutionXMpqOutOfDate();
 	const bool fontsMpqOutOfDate = AreExtraFontsOutOfDate();
 
 	if (devilutionxMpqOutOfDate && fontsMpqOutOfDate) {
@@ -1220,7 +1216,7 @@ void DiabloInit()
 	if (gbIsHellfire && !forceHellfire && *sgOptions.StartUp.gameMode == StartUpGameMode::Ask) {
 		UiSelStartUpGameOption();
 		if (!gbIsHellfire) {
-			// Reinitialize the UI Elements cause we changed the game
+			// Reinitialize the UI Elements because we changed the game
 			UnloadUiGFX();
 			UiInitialize();
 			if (IsHardwareCursor())
@@ -1499,7 +1495,7 @@ void TimeoutCursor(bool bTimeout)
 	} else if (sgnTimeoutCurs != CURSOR_NONE) {
 		// Timeout is gone, we should restore the previous cursor.
 		// But the timeout cursor could already be changed by the now processed messages (for example item cursor from CMD_GETITEM).
-		// Changing the item cursor back to the previous (hand) cursor could result in deleted items, cause this resets Player.HoldItem (see NewCursor).
+		// Changing the item cursor back to the previous (hand) cursor could result in deleted items, because this resets Player.HoldItem (see NewCursor).
 		if (pcurs == CURSOR_HOURGLASS)
 			NewCursor(sgnTimeoutCurs);
 		sgnTimeoutCurs = CURSOR_NONE;
@@ -1540,11 +1536,11 @@ void InventoryKeyPressed()
 		return;
 	invflag = !invflag;
 	if (!IsLeftPanelOpen() && CanPanelsCoverView()) {
-		if (!invflag) { // We closed the invetory
+		if (!invflag) { // We closed the inventory
 			if (MousePosition.x < 480 && MousePosition.y < GetMainPanel().position.y) {
 				SetCursorPos(MousePosition + Displacement { 160, 0 });
 			}
-		} else if (!sbookflag) { // We opened the invetory
+		} else if (!sbookflag) { // We opened the inventory
 			if (MousePosition.x > 160 && MousePosition.y < GetMainPanel().position.y) {
 				SetCursorPos(MousePosition - Displacement { 160, 0 });
 			}
@@ -1620,11 +1616,11 @@ void SpellBookKeyPressed()
 		return;
 	sbookflag = !sbookflag;
 	if (!IsLeftPanelOpen() && CanPanelsCoverView()) {
-		if (!sbookflag) { // We closed the invetory
+		if (!sbookflag) { // We closed the inventory
 			if (MousePosition.x < 480 && MousePosition.y < GetMainPanel().position.y) {
 				SetCursorPos(MousePosition + Displacement { 160, 0 });
 			}
-		} else if (!invflag) { // We opened the invetory
+		} else if (!invflag) { // We opened the inventory
 			if (MousePosition.x > 160 && MousePosition.y < GetMainPanel().position.y) {
 				SetCursorPos(MousePosition - Displacement { 160, 0 });
 			}
@@ -2965,9 +2961,12 @@ void LoadGameLevel(bool firstflag, lvl_entry lvldir)
 	}
 	SetRndSeed(DungeonSeeds[currlevel]);
 	IncProgress();
+	LoadTrns();
 	MakeLightTable();
-	SetDungeonMicros();
+	LoadLevelSOLData();
+	IncProgress();
 	LoadLvlGFX();
+	SetDungeonMicros();
 	ClearClxDrawCache();
 	IncProgress();
 
@@ -3020,7 +3019,6 @@ void LoadGameLevel(bool firstflag, lvl_entry lvldir)
 	if (!setlevel) {
 		CreateLevel(lvldir);
 		IncProgress();
-		LoadLevelSOLData();
 		SetRndSeed(DungeonSeeds[currlevel]);
 
 		if (leveltype != DTYPE_TOWN) {
@@ -3147,8 +3145,6 @@ void LoadGameLevel(bool firstflag, lvl_entry lvldir)
 			IncProgress();
 		}
 		InitCorpses();
-		IncProgress();
-		LoadLevelSOLData();
 		IncProgress();
 
 		if (lvldir == ENTRY_WARPLVL)
