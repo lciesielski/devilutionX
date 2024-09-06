@@ -254,10 +254,14 @@ void InitQuests()
 		InitialiseQuestPools(DungeonSeeds[15], Quests);
 	}
 
-	if (gbIsSpawn) {
+	if (gbIsSpawn || gbIsLearning) {
 		for (auto &quest : Quests) {
 			quest._qactive = QUEST_NOTAVAIL;
 		}
+	}
+	if (gbIsLearning) {
+		Quests[Q_BUTCHER]._qactive = QUEST_INIT;
+		Quests[Q_DIABLO]._qactive = QUEST_INIT;
 	}
 
 	if (Quests[Q_SKELKING]._qactive == QUEST_NOTAVAIL)

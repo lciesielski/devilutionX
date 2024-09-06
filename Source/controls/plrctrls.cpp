@@ -1415,7 +1415,7 @@ bool IsStickMovementSignificant()
 ControlTypes GetInputTypeFromEvent(const SDL_Event &event)
 {
 	if (IsAnyOf(event.type, SDL_KEYDOWN, SDL_KEYUP))
-		return ControlTypes::KeyboardAndMouse;
+		return ControlTypes::VirtualGamepad;
 #ifdef USE_SDL1
 	if (IsAnyOf(event.type, SDL_MOUSEBUTTONDOWN, SDL_MOUSEBUTTONUP, SDL_MOUSEMOTION))
 		return ControlTypes::KeyboardAndMouse;
@@ -2125,6 +2125,40 @@ void QuickCast(size_t slot)
 
 	CheckPlrSpell(false, spell, spellType);
 	LastMouseButtonAction = prevMouseButtonAction;
+}
+
+void plrctrls_move_plr_down()
+{
+	WalkInDir(*MyPlayer, AxisDirection { AxisDirectionX_NONE, AxisDirectionY_DOWN });
+}
+void plrctrls_move_plr_up()
+{
+	WalkInDir(*MyPlayer, AxisDirection { AxisDirectionX_NONE, AxisDirectionY_UP });
+}
+void plrctrls_move_plr_left()
+{
+	WalkInDir(*MyPlayer, AxisDirection { AxisDirectionX_LEFT, AxisDirectionY_NONE });
+}
+void plrctrls_move_plr_right()
+{
+	WalkInDir(*MyPlayer, AxisDirection { AxisDirectionX_RIGHT, AxisDirectionY_NONE });
+}
+
+void plrctrls_move_plr_down_left()
+{
+	WalkInDir(*MyPlayer, AxisDirection { AxisDirectionX_LEFT, AxisDirectionY_DOWN });
+}
+void plrctrls_move_plr_down_right()
+{
+	WalkInDir(*MyPlayer, AxisDirection { AxisDirectionX_RIGHT, AxisDirectionY_DOWN });
+}
+void plrctrls_move_plr_up_left()
+{
+	WalkInDir(*MyPlayer, AxisDirection { AxisDirectionX_LEFT, AxisDirectionY_UP });
+}
+void plrctrls_move_plr_up_right()
+{
+	WalkInDir(*MyPlayer, AxisDirection { AxisDirectionX_RIGHT, AxisDirectionY_UP });
 }
 
 } // namespace devilution

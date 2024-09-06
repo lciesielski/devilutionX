@@ -82,6 +82,16 @@ void FocusOnInventory();
 void PerformSpellAction();
 void QuickCast(size_t slot);
 
+void plrctrls_move_plr_down();
+void plrctrls_move_plr_up();
+void plrctrls_move_plr_left();
+void plrctrls_move_plr_right();
+
+void plrctrls_move_plr_down_left();
+void plrctrls_move_plr_down_right();
+void plrctrls_move_plr_up_left();
+void plrctrls_move_plr_up_right();
+
 extern int speedspellcount;
 
 } // namespace devilution

@@ -417,6 +417,7 @@ struct StartUpOptions : OptionCategoryBase {
 
 	OptionEntryEnum<StartUpGameMode> gameMode;
 	OptionEntryBoolean shareware;
+	OptionEntryBoolean machineLearning;
 	/** @brief Play game intro video on diablo startup. */
 	OptionEntryEnum<StartUpIntro> diabloIntro;
 	/** @brief Play game intro video on hellfire startup. */

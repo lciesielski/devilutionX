@@ -24,6 +24,7 @@ extern DVL_API_FOR_TEST bool gbIsSpawn;
 extern DVL_API_FOR_TEST bool gbIsHellfire;
 extern DVL_API_FOR_TEST bool gbVanilla;
 extern bool forceHellfire;
+extern bool gbIsLearning;
 
 #ifdef UNPACKED_MPQS
 extern DVL_API_FOR_TEST std::optional<std::string> spawn_data_path;

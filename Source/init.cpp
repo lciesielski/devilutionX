@@ -54,6 +54,8 @@ bool gbIsHellfire;
 bool gbVanilla;
 /** Whether the Hellfire mode is required (forced). */
 bool forceHellfire;
+/** Flag for setting context for the machine leraning agent */
+bool gbIsLearning;
 
 #ifdef UNPACKED_MPQS
 std::optional<std::string> spawn_data_path;
