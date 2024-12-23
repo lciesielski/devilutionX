@@ -464,8 +464,6 @@ GameModeOptions::GameModeOptions()
               { StartUpGameMode::Hellfire, N_("Hellfire") },
           })
     , shareware("Shareware", OptionEntryFlags::NeedDiabloMpq | OptionEntryFlags::RecreateUI, N_("Restrict to Shareware"), N_("Makes the game compatible with the demo. Enables multiplayer with friends who don't own a full copy of Diablo."), false)
-    , machineLearning("Machine Learning", OptionEntryFlags::NeedDiabloMpq | OptionEntryFlags::RecreateUI, N_("Set Machine Learning Context"), N_("Enables flag for machine learning context. Simplifies some areas of the game upon game initialization."), false)
-
 {
 	gameMode.SetValueChangedCallback(OptionGameModeChanged);
 	shareware.SetValueChangedCallback(OptionSharewareChanged);
@@ -497,7 +495,11 @@ StartUpOptions::StartUpOptions()
               { StartUpSplash::LogoAndTitleDialog, N_("Logo and Title Screen") },
               { StartUpSplash::TitleDialog, N_("Title Screen") },
               { StartUpSplash::None, N_("None") },
-          })
+          }),
+	machineLearning("Machine Learning", OptionEntryFlags::NeedDiabloMpq | OptionEntryFlags::RecreateUI,
+		N_("Set Machine Learning Context"),
+		N_("Enables flag for machine learning context. Simplifies some areas of the game upon game initialization."),
+		false)
 {
 	machineLearning.SetValueChangedCallback(OptionMachineLearningChanged);
 }
