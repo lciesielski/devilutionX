@@ -555,7 +555,7 @@ std::string TextCmdSpawnItem(const std::string_view parameter)
     std::string ret = "Spawned";
 
     if (parameter.empty()) {
-        StrAppend(ret, _("Provide item name."));
+        ret = "Provide item name.";
         return ret;
     }
 
@@ -573,7 +573,7 @@ std::string TextCmdSpawnUnique(const std::string_view parameter)
     std::string ret = "Spawned";
 
     if (parameter.empty()) {
-        StrAppend(ret, _("Provide item name."));
+        ret = "Provide item name.";
         return ret;
     }
 
