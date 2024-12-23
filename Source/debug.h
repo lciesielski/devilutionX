@@ -20,6 +20,7 @@ extern std::string TestMapPath;
 extern OptionalOwnedClxSpriteList pSquareCel;
 extern bool DebugToggle;
 extern bool DebugGodMode;
+extern bool DebugInvisible;
 extern bool DebugVision;
 extern bool DebugPath;
 extern bool DebugGrid;
@@ -33,6 +34,7 @@ extern uint32_t glEndSeed[NUMLEVELS];
 
 enum class DebugGridTextItem : uint16_t {
 	None,
+	microTiles,
 	dPiece,
 	dTransVal,
 	dLight,

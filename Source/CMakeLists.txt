@@ -121,6 +121,8 @@ set(libdevilutionx_SRCS
   engine/render/scrollrt.cpp
   engine/render/text_render.cpp
 
+  items/validation.cpp
+
   levels/crypt.cpp
   levels/drlg_l1.cpp
   levels/drlg_l2.cpp
@@ -334,6 +336,13 @@ if(USE_SDL1)
   target_link_libraries(DevilutionX::SDL INTERFACE
     libdevilutionx_sdl2_to_1_2_backports
   )
+  if(APPLE)
+    enable_language(OBJC)
+    target_sources(libdevilutionx_sdl2_to_1_2_backports PRIVATE
+      platform/macos_sdl1/SDL_filesystem.m)
+    target_link_libraries(libdevilutionx_sdl2_to_1_2_backports PRIVATE
+      "-framework Foundation")
+  endif()
 endif()
 
 add_devilutionx_object_library(libdevilutionx_codec
@@ -366,6 +375,17 @@ add_devilutionx_object_library(libdevilutionx_format_int
 )
 target_link_libraries(libdevilutionx_format_int PUBLIC
   libdevilutionx_strings
+)
+
+add_devilutionx_object_library(libdevilutionx_ini
+  utils/ini.cpp
+)
+target_link_libraries(libdevilutionx_ini PUBLIC
+  fmt::fmt
+  tl
+  unordered_dense::unordered_dense
+  libdevilutionx_strings
+  libdevilutionx_utf8
 )
 
 add_library(libdevilutionx_log INTERFACE)
@@ -403,13 +423,13 @@ target_link_libraries(libdevilutionx PUBLIC
   DevilutionX::SDL
   fmt::fmt
   libsmackerdec
-  simpleini::simpleini
   tl
   unordered_dense::unordered_dense
   libdevilutionx_codec
   libdevilutionx_crawl
   libdevilutionx_format_int
   libdevilutionx_file_util
+  libdevilutionx_ini
   libdevilutionx_parse_int
   libdevilutionx_strings
   libdevilutionx_utf8

@@ -1,5 +1,7 @@
-#include <gtest/gtest.h>
+#include <climits>
 #include <random>
+
+#include <gtest/gtest.h>
 
 #include "engine/random.hpp"
 #include "items.h"
@@ -61,7 +63,7 @@ void GenerateAllUniques(bool hellfire, const size_t expectedUniques)
 				continue;
 			if (AllItemsList[j].iItemId != uniqueItem.UIItemId)
 				continue;
-			if (AllItemsList[j].iRnd != IDROP_NEVER)
+			if (AllItemsList[j].dropRate > 0)
 				uniqueBaseIndex = static_cast<_item_indexes>(j);
 			break;
 		}

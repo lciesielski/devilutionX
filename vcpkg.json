@@ -4,10 +4,9 @@
 	"dependencies": [
 		"fmt",
 		"bzip2",
-		"simpleini",
 		"lua"
 	],
-	"builtin-baseline": "1318ab14aae14db20085441cd71366891a9c9d0c",
+	"builtin-baseline": "813a241fb83adad503a391facaa6aa634631accc",
 	"features": {
 		"sdl1": {
 			"description": "Use SDL1.2 instead of SDL2",

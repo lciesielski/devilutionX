@@ -20,6 +20,7 @@
 #include "engine/point.hpp"
 #include "interfac.h"
 #include "items.h"
+#include "items/validation.h"
 #include "levels/gendung.h"
 #include "multi.h"
 #include "playerdat.hpp"
@@ -398,12 +399,7 @@ public:
 
 	void CalcScrolls();
 
-	bool CanUseItem(const Item &item) const
-	{
-		return _pStrength >= item._iMinStr
-		    && _pMagic >= item._iMinMag
-		    && _pDexterity >= item._iMinDex;
-	}
+	bool CanUseItem(const Item &item) const;
 
 	bool CanCleave()
 	{
@@ -520,9 +516,9 @@ public:
 	Point GetTargetPosition() const;
 
 	/**
-	 * @brief Check if position is in player's path.
+	 * @brief Returns the index of the given position in `walkpath`, or -1 if not found.
 	 */
-	bool IsPositionInPath(Point position);
+	int GetPositionPathIndex(Point position);
 
 	/**
 	 * @brief Says a speech line.
@@ -689,7 +685,7 @@ public:
 			// Maximum achievable HP is approximately 1200. Diablo uses fixed point integers where the last 6 bits are
 			// fractional values. This means that we will never overflow HP values normally by doing this multiplication
 			// as the max value is representable in 17 bits and the multiplication result will be at most 23 bits
-			_pHPPer = std::clamp(_pHitPoints * 80 / _pMaxHP, 0, 80); // hp should never be greater than maxHP but just in case
+			_pHPPer = std::clamp(_pHitPoints * 81 / _pMaxHP, 0, 81); // hp should never be greater than maxHP but just in case
 		}
 
 		return _pHPPer;
@@ -700,7 +696,7 @@ public:
 		if (_pMaxMana <= 0) {
 			_pManaPer = 0;
 		} else {
-			_pManaPer = std::clamp(_pMana * 80 / _pMaxMana, 0, 80);
+			_pManaPer = std::clamp(_pMana * 81 / _pMaxMana, 0, 81);
 		}
 
 		return _pManaPer;

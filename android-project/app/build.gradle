@@ -7,7 +7,7 @@ if (buildAsApplication) {
 }
 
 android {
-	ndkVersion '26.1.10909125'
+	ndkVersion '27.2.12479018'
 	compileSdk 35
 	defaultConfig {
 		if (buildAsApplication) {
@@ -25,6 +25,9 @@ android {
 		}
 	}
 	buildTypes {
+		debug {
+			applicationIdSuffix "dev"
+		}
 		release {
 			minifyEnabled false
 			proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -45,7 +48,7 @@ android {
 		externalNativeBuild {
 			cmake {
 				path '../../CMakeLists.txt'
-				version "3.22.1+"
+				version "3.31.0+"
 				buildStagingDirectory System.env.DevilutionX_Android_StagingDirectory
 			}
 		}

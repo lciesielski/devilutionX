@@ -16,6 +16,7 @@
 #include "engine/sound_defs.hpp"
 #include "pack.h"
 #include "utils/enum_traits.h"
+#include "utils/string_view_hash.hpp"
 
 namespace devilution {
 
@@ -411,12 +412,18 @@ protected:
 	const char *description;
 };
 
-struct StartUpOptions : OptionCategoryBase {
-	StartUpOptions();
+struct GameModeOptions : OptionCategoryBase {
+	GameModeOptions();
 	std::vector<OptionEntryBase *> GetEntries() override;
 
 	OptionEntryEnum<StartUpGameMode> gameMode;
 	OptionEntryBoolean shareware;
+};
+
+struct StartUpOptions : OptionCategoryBase {
+	StartUpOptions();
+	std::vector<OptionEntryBase *> GetEntries() override;
+
 	OptionEntryBoolean machineLearning;
 	/** @brief Play game intro video on diablo startup. */
 	OptionEntryEnum<StartUpIntro> diabloIntro;
@@ -599,6 +606,13 @@ struct GameplayOptions : OptionCategoryBase {
 	OptionEntryInt<int> numFullRejuPotionPickup;
 	/** @brief Enable floating numbers. */
 	OptionEntryEnum<FloatingNumbers> enableFloatingNumbers;
+
+	/**
+	 * @brief If loading takes less than this value, skips displaying the loading screen.
+	 *
+	 * Advanced option, not displayed in the UI.
+	 */
+	OptionEntryInt<int> skipLoadingScreenThresholdMs;
 };
 
 struct ControllerOptions : OptionCategoryBase {
@@ -711,7 +725,7 @@ private:
 	std::forward_list<Action> actions;
 	ankerl::unordered_dense::segmented_map<uint32_t, std::reference_wrapper<Action>> keyIDToAction;
 	ankerl::unordered_dense::segmented_map<uint32_t, std::string> keyIDToKeyName;
-	ankerl::unordered_dense::segmented_map<std::string, uint32_t> keyNameToKeyID;
+	ankerl::unordered_dense::segmented_map<std::string, uint32_t, StringViewHash, StringViewEquals> keyNameToKeyID;
 };
 
 /** The Padmapper maps gamepad buttons to actions. */
@@ -783,7 +797,7 @@ private:
 	std::forward_list<Action> actions;
 	std::array<const Action *, enum_size<ControllerButton>::value> buttonToReleaseAction;
 	std::array<std::string, enum_size<ControllerButton>::value> buttonToButtonName;
-	ankerl::unordered_dense::segmented_map<std::string, ControllerButton> buttonNameToButton;
+	ankerl::unordered_dense::segmented_map<std::string, ControllerButton, StringViewHash, StringViewEquals> buttonNameToButton;
 	bool committed = false;
 
 	const Action *FindAction(ControllerButton button) const;
@@ -791,6 +805,7 @@ private:
 };
 
 struct Options {
+	GameModeOptions GameMode;
 	StartUpOptions StartUp;
 	DiabloOptions Diablo;
 	HellfireOptions Hellfire;
@@ -808,6 +823,7 @@ struct Options {
 	{
 		return {
 			&Language,
+			&GameMode,
 			&StartUp,
 			&Graphics,
 			&Audio,

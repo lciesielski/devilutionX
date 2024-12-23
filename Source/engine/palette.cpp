@@ -114,6 +114,20 @@ void GenerateBlendedLookupTable(std::array<SDL_Color, 256> &palette, int skipFro
 #endif
 }
 
+#if DEVILUTIONX_PALETTE_TRANSPARENCY_BLACK_16_LUT
+void UpdateTransparencyLookupBlack16(int from, int to)
+{
+	for (int i = from; i <= to; i++) {
+		for (int j = 0; j < 256; j++) {
+			const std::uint16_t index = i | (j << 8);
+			const std::uint16_t reverseIndex = j | (i << 8);
+			paletteTransparencyLookupBlack16[index] = paletteTransparencyLookup[0][i] | (paletteTransparencyLookup[0][j] << 8);
+			paletteTransparencyLookupBlack16[reverseIndex] = paletteTransparencyLookup[0][j] | (paletteTransparencyLookup[0][i] << 8);
+		}
+	}
+}
+#endif
+
 /**
  * @brief Cycle the given range of colors in the palette
  * @param from First color index of the range
@@ -128,6 +142,10 @@ void CycleColors(int from, int to)
 	}
 
 	std::rotate(&paletteTransparencyLookup[from][0], &paletteTransparencyLookup[from + 1][0], &paletteTransparencyLookup[to + 1][0]);
+
+#if DEVILUTIONX_PALETTE_TRANSPARENCY_BLACK_16_LUT
+	UpdateTransparencyLookupBlack16(from, to);
+#endif
 }
 
 /**
@@ -144,6 +162,10 @@ void CycleColorsReverse(int from, int to)
 	}
 
 	std::rotate(&paletteTransparencyLookup[from][0], &paletteTransparencyLookup[to][0], &paletteTransparencyLookup[to + 1][0]);
+
+#if DEVILUTIONX_PALETTE_TRANSPARENCY_BLACK_16_LUT
+	UpdateTransparencyLookupBlack16(from, to);
+#endif
 }
 
 } // namespace
@@ -162,12 +184,12 @@ void palette_update(int first, int ncolor)
 
 void ApplyGamma(std::array<SDL_Color, 256> &dst, const std::array<SDL_Color, 256> &src, int n)
 {
-	double g = *sgOptions.Graphics.gammaCorrection / 100.0;
+	float g = *sgOptions.Graphics.gammaCorrection / 100.0F;
 
 	for (int i = 0; i < n; i++) {
-		dst[i].r = static_cast<Uint8>(pow(src[i].r / 256.0, g) * 256.0);
-		dst[i].g = static_cast<Uint8>(pow(src[i].g / 256.0, g) * 256.0);
-		dst[i].b = static_cast<Uint8>(pow(src[i].b / 256.0, g) * 256.0);
+		dst[i].r = static_cast<Uint8>(pow(src[i].r / 256.0F, g) * 256.0F);
+		dst[i].g = static_cast<Uint8>(pow(src[i].g / 256.0F, g) * 256.0F);
+		dst[i].b = static_cast<Uint8>(pow(src[i].b / 256.0F, g) * 256.0F);
 	}
 	RedrawEverything();
 }
@@ -274,15 +296,15 @@ int UpdateGamma(int gamma)
 	return 130 - *sgOptions.Graphics.gammaCorrection;
 }
 
-void SetFadeLevel(int fadeval, bool updateHardwareCursor)
+void SetFadeLevel(int fadeval, bool updateHardwareCursor, const std::array<SDL_Color, 256> &srcPalette)
 {
 	if (HeadlessMode)
 		return;
 
 	for (int i = 0; i < 256; i++) {
-		system_palette[i].r = (fadeval * logical_palette[i].r) / 256;
-		system_palette[i].g = (fadeval * logical_palette[i].g) / 256;
-		system_palette[i].b = (fadeval * logical_palette[i].b) / 256;
+		system_palette[i].r = (fadeval * srcPalette[i].r) / 256;
+		system_palette[i].g = (fadeval * srcPalette[i].g) / 256;
+		system_palette[i].b = (fadeval * srcPalette[i].b) / 256;
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 		system_palette[i].a = SDL_ALPHA_OPAQUE;
 #endif
@@ -301,14 +323,14 @@ void BlackPalette()
 	SetFadeLevel(0, /*updateHardwareCursor=*/false);
 }
 
-void PaletteFadeIn(int fr)
+void PaletteFadeIn(int fr, const std::array<SDL_Color, 256> &srcPalette)
 {
 	if (HeadlessMode)
 		return;
 	if (demo::IsRunning())
 		fr = 0;
 
-	ApplyGamma(logical_palette, orig_palette, 256);
+	ApplyGamma(logical_palette, srcPalette, 256);
 
 	if (fr > 0) {
 		const uint32_t tc = SDL_GetTicks();
@@ -317,7 +339,7 @@ void PaletteFadeIn(int fr)
 		for (uint32_t i = 0; i < 256; i = fr * (SDL_GetTicks() - tc) / 50) {
 			if (i != prevFadeValue) {
 				// We can skip hardware cursor update for fade level 0 (everything is black).
-				SetFadeLevel(i, /*updateHardwareCursor=*/i != 0u);
+				SetFadeLevel(i, /*updateHardwareCursor=*/i != 0u, logical_palette);
 				prevFadeValue = i;
 			}
 			BltFast(nullptr, nullptr);
@@ -330,12 +352,12 @@ void PaletteFadeIn(int fr)
 		RenderPresent();
 	}
 
-	logical_palette = orig_palette;
+	logical_palette = srcPalette;
 
 	sgbFadedIn = true;
 }
 
-void PaletteFadeOut(int fr)
+void PaletteFadeOut(int fr, const std::array<SDL_Color, 256> &srcPalette)
 {
 	if (!sgbFadedIn || HeadlessMode)
 		return;
@@ -348,15 +370,15 @@ void PaletteFadeOut(int fr)
 		uint32_t prevFadeValue = 0;
 		for (uint32_t i = 0; i < 256; i = fr * (SDL_GetTicks() - tc) / 50) {
 			if (i != prevFadeValue) {
-				SetFadeLevel(256 - i);
+				SetFadeLevel(256 - i, /*updateHardwareCursor=*/true, srcPalette);
 				prevFadeValue = i;
 			}
 			BltFast(nullptr, nullptr);
 			RenderPresent();
 		}
-		SetFadeLevel(0);
+		SetFadeLevel(0, /*updateHardwareCursor=*/true, srcPalette);
 	} else {
-		SetFadeLevel(0);
+		SetFadeLevel(0, /*updateHardwareCursor=*/true, srcPalette);
 		BltFast(nullptr, nullptr);
 		RenderPresent();
 	}
@@ -426,6 +448,10 @@ void palette_update_quest_palette(int n)
 		Uint8 best = FindBestMatchForColor(logical_palette, blendedColor, 1, 31);
 		paletteTransparencyLookup[i][j] = paletteTransparencyLookup[j][i] = best;
 	}
+
+#if DEVILUTIONX_PALETTE_TRANSPARENCY_BLACK_16_LUT
+	UpdateTransparencyLookupBlack16(i, i);
+#endif
 }
 
 } // namespace devilution
