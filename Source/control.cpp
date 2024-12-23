@@ -580,7 +580,7 @@ std::string TextCmdLevelSeed(const std::string_view parameter)
 	    "Storybook: ", DungeonSeeds[16]);
 }
 
-#ifdef _DEBUG
+//#ifdef _DEBUG
 std::string TextCmdSpawnItem(const std::string_view parameter)
 {
     std::string ret = "Spawned";
@@ -616,7 +616,7 @@ std::string TextCmdSpawnUnique(const std::string_view parameter)
 
     return ret;
 }
-#endif
+//#endif
 
 std::vector<TextCmdItem> TextCmdList = {
 	{ "/help", N_("Prints help overview or help for a specific command."), N_("[command]"), &TextCmdHelp },
@@ -624,10 +624,10 @@ std::vector<TextCmdItem> TextCmdList = {
 	{ "/arenapot", N_("Gives Arena Potions."), N_("<number>"), &TextCmdArenaPot },
 	{ "/inspect", N_("Inspects stats and equipment of another player."), N_("<player name>"), &TextCmdInspect },
 	{ "/seedinfo", N_("Show seed infos for current level."), "", &TextCmdLevelSeed },
-#ifdef _DEBUG
+//#ifdef _DEBUG
 	{ "/si", N_("Spawns item."), N_("<item name>"), &TextCmdSpawnItem },
 	{ "/su", N_("Spawns unique item."), N_("<item name>"), &TextCmdSpawnUnique },
-#endif
+//#endif
 };
 
 bool CheckChatCommand(const std::string_view text)
