@@ -750,7 +750,7 @@ void DeltaLeaveSync(uint8_t bLevel)
 	if (!gbIsMultiplayer)
 		return;
 	if (leveltype == DTYPE_TOWN) {
-		DungeonSeeds[0] = AdvanceRndSeed();
+		DungeonSeeds[0] = GenerateSeed();
 		return;
 	}
 
@@ -1659,7 +1659,7 @@ size_t OnKnockback(const TCmd *pCmd, Player &player)
 
 	if (gbBufferMsgs != 1 && player.isOnActiveLevel() && monsterIdx < MaxMonsters) {
 		Monster &monster = Monsters[monsterIdx];
-		M_GetKnockback(monster);
+		M_GetKnockback(monster, player.position.tile);
 		M_StartHit(monster, player, 0);
 	}
 

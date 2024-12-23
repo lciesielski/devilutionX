@@ -7,7 +7,11 @@
 
 #include <cmath>
 #include <cstdint>
+#include <string>
 
+#include <expected.hpp>
+
+#include "cursor.h"
 #include "engine/clx_sprite.hpp"
 #include "engine/point.hpp"
 #include "engine/rectangle.hpp"
@@ -46,7 +50,7 @@ struct Object {
 	bool _oSolidFlag = false;
 	/** True if the object allows missiles to pass through, false if it collides with missiles */
 	bool _oMissFlag = false;
-	uint8_t _oSelFlag = 0;
+	SelectionRegion selectionRegion = SelectionRegion::None;
 	bool _oPreFlag = false;
 	int _olid = 0;
 	/**
@@ -163,6 +167,11 @@ struct Object {
 	 * Returns true if the object is a harmful shrine and the player has disabled permanent shrine effects.
 	 */
 	[[nodiscard]] bool IsDisabled() const;
+
+	[[nodiscard]] constexpr bool canInteractWith() const
+	{
+		return selectionRegion != SelectionRegion::None;
+	}
 
 	/**
 	 * @brief Check if this object is barrel (or explosive barrel)
@@ -316,7 +325,7 @@ inline Object &ObjectAtPosition(Point position)
  */
 bool IsItemBlockingObjectAtPosition(Point position);
 
-void InitObjectGFX();
+tl::expected<void, std::string> InitObjectGFX();
 void FreeObjectGFX();
 void AddL1Objs(int x1, int y1, int x2, int y2);
 void AddL2Objs(int x1, int y1, int x2, int y2);
