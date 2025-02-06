@@ -418,13 +418,13 @@ struct GameModeOptions : OptionCategoryBase {
 
 	OptionEntryEnum<StartUpGameMode> gameMode;
 	OptionEntryBoolean shareware;
+	OptionEntryBoolean machineLearning;
 };
 
 struct StartUpOptions : OptionCategoryBase {
 	StartUpOptions();
 	std::vector<OptionEntryBase *> GetEntries() override;
 
-	OptionEntryBoolean machineLearning;
 	/** @brief Play game intro video on diablo startup. */
 	OptionEntryEnum<StartUpIntro> diabloIntro;
 	/** @brief Play game intro video on hellfire startup. */

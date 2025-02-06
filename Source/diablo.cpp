@@ -1196,7 +1196,7 @@ void DiabloInit()
 		gbIsHellfire = false;
 	if (forceHellfire)
 		gbIsHellfire = true;
-	if (forceLearning || *sgOptions.StartUp.machineLearning)
+	if (forceLearning || *sgOptions.GameMode.machineLearning)
 		gbIsLearning = true;
 
 	gbIsHellfireSaveGame = gbIsHellfire;
