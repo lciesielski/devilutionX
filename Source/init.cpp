@@ -43,8 +43,6 @@ int _newlib_heap_size_user = 100 * 1024 * 1024;
 namespace devilution {
 
 bool gbActive;
-/** Flag for setting context for the machine leraning agent */
-bool gbIsLearning;
 
 namespace {
 

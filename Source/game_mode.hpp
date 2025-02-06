@@ -8,6 +8,8 @@ namespace devilution {
 
 /** Indicate if we only have access to demo data */
 extern DVL_API_FOR_TEST bool gbIsSpawn;
+/** Indicate if we are in ML context */
+extern DVL_API_FOR_TEST bool gbIsLearning;
 /** Indicate if we have loaded the Hellfire expansion data */
 extern DVL_API_FOR_TEST bool gbIsHellfire;
 /** Indicate if we want vanilla savefiles */

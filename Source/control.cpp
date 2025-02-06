@@ -743,7 +743,7 @@ void CalculatePanelAreas()
 
 bool IsChatAvailable()
 {
-	return gbIsMultiplayer;
+	return true;
 }
 
 void FocusOnCharInfo()

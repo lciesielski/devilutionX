@@ -25,6 +25,7 @@ const auto OptionChangeHandlerShareware = (GetOptions().GameMode.shareware.SetVa
 } // namespace
 
 bool gbIsSpawn;
+bool gbIsLearning;
 bool gbIsHellfire;
 bool gbVanilla;
 bool forceHellfire;
