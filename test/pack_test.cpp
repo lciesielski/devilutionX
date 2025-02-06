@@ -3,9 +3,12 @@
 #include <gtest/gtest.h>
 
 #include "cursor.h"
+#include "engine/assets.hpp"
+#include "game_mode.hpp"
 #include "monstdat.h"
 #include "pack.h"
 #include "playerdat.hpp"
+#include "utils/is_of.hpp"
 #include "utils/paths.h"
 
 namespace devilution {

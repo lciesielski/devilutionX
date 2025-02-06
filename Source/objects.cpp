@@ -26,13 +26,14 @@
 #include "engine/load_file.hpp"
 #include "engine/points_in_rectangle_range.hpp"
 #include "engine/random.hpp"
-#include "init.h"
+#include "headless_mode.hpp"
 #include "inv.h"
 #include "inv_iterators.hpp"
 #include "levels/crypt.h"
 #include "levels/drlg_l4.h"
 #include "levels/setmaps.h"
 #include "levels/themes.h"
+#include "levels/tile_properties.hpp"
 #include "lighting.h"
 #include "minitext.h"
 #include "missiles.h"
@@ -44,10 +45,10 @@
 #include "towners.h"
 #include "track.h"
 #include "utils/algorithm/container.hpp"
+#include "utils/is_of.hpp"
 #include "utils/language.h"
 #include "utils/log.hpp"
 #include "utils/str_cat.hpp"
-#include "utils/utf8.hpp"
 
 namespace devilution {
 
@@ -3619,7 +3620,7 @@ unsigned int Object::GetId() const
 
 bool Object::IsDisabled() const
 {
-	if (!*sgOptions.Gameplay.disableCripplingShrines) {
+	if (!*GetOptions().Gameplay.disableCripplingShrines) {
 		return false;
 	}
 	if (IsAnyOf(_otype, _object_id::OBJ_GOATSHRINE, _object_id::OBJ_CAULDRON)) {

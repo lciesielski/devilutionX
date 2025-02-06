@@ -12,21 +12,24 @@
 #include <array>
 
 #include "diablo.h"
-#include "engine.h"
 #include "engine/actor_position.hpp"
 #include "engine/animationinfo.h"
 #include "engine/clx_sprite.hpp"
+#include "engine/displacement.hpp"
 #include "engine/path.h"
 #include "engine/point.hpp"
+#include "game_mode.hpp"
 #include "interfac.h"
 #include "items.h"
 #include "items/validation.h"
+#include "levels/dun_tile.hpp"
 #include "levels/gendung.h"
 #include "multi.h"
 #include "playerdat.hpp"
 #include "spelldat.h"
 #include "utils/attributes.h"
 #include "utils/enum_traits.h"
+#include "utils/is_of.hpp"
 
 namespace devilution {
 
@@ -262,7 +265,7 @@ struct Player {
 	int _pILMaxDam;
 	uint32_t _pExperience;
 	PLR_MODE _pmode;
-	int8_t walkpath[MaxPathLength];
+	int8_t walkpath[MaxPathLengthPlayer];
 	bool plractive;
 	action_id destAction;
 	int destParam1;
@@ -782,7 +785,7 @@ public:
 	}
 	[[nodiscard]] Displacement getRenderingOffset(const ClxSprite sprite) const
 	{
-		Displacement offset = { -CalculateWidth2(sprite.width()), 0 };
+		Displacement offset = { -CalculateSpriteTileCenterX(sprite.width()), 0 };
 		if (isWalking())
 			offset += GetOffsetForWalking(AnimInfo, _pdir);
 		return offset;

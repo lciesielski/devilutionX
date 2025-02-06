@@ -8,12 +8,14 @@
 #include "cursor.h"
 #include "diablo_msg.hpp"
 #include "engine/backbuffer_state.hpp"
+#include "engine/demomode.h"
 #include "engine/events.hpp"
 #include "engine/sound.h"
 #include "engine/sound_defs.hpp"
 #include "gmenu.h"
-#include "init.h"
+#include "headless_mode.hpp"
 #include "loadsave.h"
+#include "multi.h"
 #include "options.h"
 #include "pfile.h"
 #include "qol/floatingnumbers.h"
@@ -281,7 +283,7 @@ void GamemenuSpeed(bool bActivate)
 		sgGameInitInfo.nTickRate = gmenu_slider_get(&sgOptionsMenu[3], 20, 50);
 	}
 
-	sgOptions.Gameplay.tickRate.SetValue(sgGameInitInfo.nTickRate);
+	GetOptions().Gameplay.tickRate.SetValue(sgGameInitInfo.nTickRate);
 	gnTickDelay = 1000 / sgGameInitInfo.nTickRate;
 }
 
@@ -357,7 +359,7 @@ void gamemenu_save_game(bool /*bActivate*/)
 	NewCursor(CURSOR_HAND);
 	if (CornerStone.activated) {
 		CornerstoneSave();
-		SaveOptions();
+		if (!demo::IsRunning()) SaveOptions();
 	}
 	interface_msg_pump();
 	SetEventHandler(saveProc);

@@ -6,13 +6,14 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 
 #include <ankerl/unordered_dense.h>
 
 #include "diablo.h"
-#include "engine.h"
 #include "engine/clx_sprite.hpp"
+#include "engine/point.hpp"
 
 namespace devilution {
 
@@ -42,6 +43,7 @@ enum class DebugGridTextItem : uint16_t {
 	dFlags,
 	dPlayer,
 	dMonster,
+	missiles,
 	dCorpse,
 	dObject,
 	dItem,
@@ -72,7 +74,7 @@ bool IsDebugGridTextNeeded();
 bool IsDebugGridInMegatiles();
 DebugGridTextItem GetDebugGridTextType();
 void SetDebugGridTextType(DebugGridTextItem value);
-bool GetDebugGridText(Point dungeonCoords, char *debugGridTextBuffer);
+bool GetDebugGridText(Point dungeonCoords, std::string &debugGridText);
 bool IsDebugAutomapHighlightNeeded();
 bool ShouldHighlightDebugAutomapTile(Point position);
 void AddDebugAutomapMonsterHighlight(std::string_view name);

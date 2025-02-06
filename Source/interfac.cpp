@@ -12,7 +12,6 @@
 #include <expected.hpp>
 
 #include "control.h"
-#include "engine.h"
 #include "engine/clx_sprite.hpp"
 #include "engine/dx.h"
 #include "engine/events.hpp"
@@ -20,9 +19,12 @@
 #include "engine/load_clx.hpp"
 #include "engine/palette.h"
 #include "engine/render/clx_render.hpp"
+#include "engine/render/primitive_render.hpp"
+#include "game_mode.hpp"
+#include "headless_mode.hpp"
 #include "hwcursor.hpp"
-#include "init.h"
 #include "loadsave.h"
+#include "multi.h"
 #include "pfile.h"
 #include "plrmsg.h"
 #include "utils/log.hpp"
@@ -471,7 +473,7 @@ void InitRendering()
 void CheckShouldSkipRendering()
 {
 	if (!ProgressEventHandlerState.skipRendering) return;
-	const bool shouldSkip = ProgressEventHandlerState.loadStartedAt + *sgOptions.Gameplay.skipLoadingScreenThresholdMs > SDL_GetTicks();
+	const bool shouldSkip = ProgressEventHandlerState.loadStartedAt + *GetOptions().Gameplay.skipLoadingScreenThresholdMs > SDL_GetTicks();
 	if (shouldSkip) return;
 	ProgressEventHandlerState.skipRendering = false;
 	if (!HeadlessMode) InitRendering();

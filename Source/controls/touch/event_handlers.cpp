@@ -4,7 +4,7 @@
 #include "controls/plrctrls.h"
 #include "cursor.h"
 #include "diablo.h"
-#include "engine.h"
+#include "engine/render/primitive_render.hpp"
 #include "engine/render/scrollrt.h"
 #include "gmenu.h"
 #include "inv.h"
@@ -12,6 +12,7 @@
 #include "panels/spell_list.hpp"
 #include "qol/stash.h"
 #include "stores.h"
+#include "utils/is_of.hpp"
 #include "utils/ui_fwd.h"
 
 namespace devilution {
