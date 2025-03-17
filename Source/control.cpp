@@ -44,6 +44,7 @@
 #include "panels/spell_book.hpp"
 #include "panels/spell_icons.hpp"
 #include "panels/spell_list.hpp"
+#include "pfile.h"
 #include "playerdat.hpp"
 #include "qol/stash.h"
 #include "qol/xpbar.h"
@@ -727,7 +728,7 @@ bool IsLevelUpButtonVisible()
 	if (ControlMode == ControlTypes::VirtualGamepad) {
 		return false;
 	}
-	if (ActiveStore != TalkID::None || IsStashOpen) {
+	if (IsPlayerInStore() || IsStashOpen) {
 		return false;
 	}
 	if (QuestLogIsOpen && GetLeftPanel().contains(GetMainPanel().position + Displacement { 0, -74 })) {
@@ -1218,6 +1219,19 @@ void CheckMainPanelButtonUp()
 			DoAutoMap();
 			break;
 		case PanelButtonMainmenu:
+			if (MyPlayerIsDead) {
+				if (!gbIsMultiplayer) {
+					if (gbValidSaveFile)
+						gamemenu_load_game(false);
+					else
+						gamemenu_exit_game(false);
+				} else {
+					NetSendCmd(true, CMD_RETOWN);
+				}
+				break;
+			} else if (MyPlayer->_pHitPoints == 0) {
+				break;
+			}
 			qtextflag = false;
 			gamemenu_handle_previous();
 			gamemenuOff = false;
@@ -1450,6 +1464,52 @@ void RedBack(const Surface &out)
 			dst++;
 		}
 	}
+}
+
+void DrawDeathText(const Surface &out)
+{
+	const TextRenderOptions largeTextOptions {
+		.flags = UiFlags::FontSize42 | UiFlags::ColorGold | UiFlags::AlignCenter | UiFlags::VerticalCenter,
+		.spacing = 2
+	};
+	const TextRenderOptions smallTextOptions {
+		.flags = UiFlags::FontSize30 | UiFlags::ColorGold | UiFlags::AlignCenter | UiFlags::VerticalCenter,
+		.spacing = 2
+	};
+	std::string text;
+	int verticalPadding = 42;
+	Point linePosition { 0, gnScreenHeight / 2 - (verticalPadding * 2) };
+
+	text = _("You have died");
+	DrawString(out, text, linePosition, largeTextOptions);
+	linePosition.y += verticalPadding;
+
+	std::string buttonText;
+
+	switch (ControlMode) {
+	case ControlTypes::KeyboardAndMouse:
+		buttonText = _("ESC");
+		break;
+	case ControlTypes::Gamepad:
+		buttonText = ToString(GamepadType, ControllerButton_BUTTON_START);
+		break;
+	case ControlTypes::VirtualGamepad:
+		buttonText = _("Menu Button");
+		break;
+	default:
+		break;
+	}
+
+	if (!gbIsMultiplayer) {
+		if (gbValidSaveFile)
+			text = fmt::format(fmt::runtime(_("Press {} to load last save.")), buttonText);
+		else
+			text = fmt::format(fmt::runtime(_("Press {} to return to Main Menu.")), buttonText);
+
+	} else {
+		text = fmt::format(fmt::runtime(_("Press {} to restart in town.")), buttonText);
+	}
+	DrawString(out, text, linePosition, smallTextOptions);
 }
 
 void DrawGoldSplit(const Surface &out)
