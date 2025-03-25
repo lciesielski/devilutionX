@@ -573,6 +573,10 @@ void CheckInvPaste(Player &player, Point cursorPosition)
 			return;
 	}
 
+	if (&player == MyPlayer) {
+		PlaySFX(ItemInvSnds[ItemCAnimTbl[player.HoldItem._iCurs]]);
+	}
+
 	// Select the parameters that go into
 	// ChangeEquipment and add it to post switch
 	switch (location) {
@@ -601,7 +605,6 @@ void CheckInvPaste(Player &player, Point cursorPosition)
 
 	CalcPlrInv(player, true);
 	if (&player == MyPlayer) {
-		PlaySFX(ItemInvSnds[ItemCAnimTbl[player.HoldItem._iCurs]]);
 		NewCursor(player.HoldItem);
 	}
 }
@@ -1875,7 +1878,7 @@ int SyncDropItem(Point position, _item_indexes idx, uint16_t icreateinfo, int is
 
 	Item item;
 
-	RecreateItem(*MyPlayer, item, idx, icreateinfo, iseed, ivalue, (ibuff & CF_HELLFIRE) != 0);
+	RecreateItem(*MyPlayer, item, idx, icreateinfo, iseed, ivalue, ibuff);
 	if (id != 0)
 		item._iIdentified = true;
 	item._iMaxDur = mdur;
@@ -1886,7 +1889,6 @@ int SyncDropItem(Point position, _item_indexes idx, uint16_t icreateinfo, int is
 		item._iPLToHit = ClampToHit(item, toHit);
 		item._iMaxDam = ClampMaxDam(item, maxDam);
 	}
-	item.dwBuff = ibuff;
 
 	return PlaceItemInWorld(std::move(item), position);
 }
