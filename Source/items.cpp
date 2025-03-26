@@ -4789,8 +4789,8 @@ std::string DebugSpawnItem(std::string itemName)
 {
 	if (ActiveItemCount >= MAXITEMS) return "No space to generate the item!";
 
-	const int max_time = 3000;
-	const int max_iter = 1000000;
+	const int max_time = 10000;
+	const int max_iter = 10000000;
 
 	AsciiStrToLower(itemName);
 
@@ -4817,6 +4817,9 @@ std::string DebugSpawnItem(std::string itemName)
 		SetupAllItems(*MyPlayer, testItem, idx, AdvanceRndSeed(), monsterLevel, 1, false, false);
 		TryRandomUniqueItem(testItem, idx, monsterLevel, 1, false, false);
 		SetupItem(testItem);
+
+		if (!IsItemValid(*MyPlayer, testItem))
+			continue;
 
 		std::string tmp = AsciiStrToLower(testItem._iIName);
 		if (tmp.find(itemName) != std::string::npos)
