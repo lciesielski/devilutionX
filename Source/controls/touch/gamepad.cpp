@@ -87,7 +87,7 @@ void InitializeVirtualGamepad()
 		padButtonSize = roundToInt(0.3f * dpi);
 		padButtonSpacing = roundToInt(0.1f * dpi);
 
-		if (*sgOptions.Graphics.adjustControlsForTablets)
+		if (*GetOptions().Graphics.adjustControlsForTablets)
 		{
 			inputMargin = round(1.1 * dpi);
 			menuButtonWidth = round(0.4 * dpi);
