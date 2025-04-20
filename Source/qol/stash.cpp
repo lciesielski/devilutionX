@@ -17,6 +17,7 @@
 #include "engine/render/clx_render.hpp"
 #include "engine/render/text_render.hpp"
 #include "engine/size.hpp"
+#include "headless_mode.hpp"
 #include "hwcursor.hpp"
 #include "inv.h"
 #include "minitext.h"
@@ -462,7 +463,7 @@ bool UseStashItem(uint16_t c)
 		return true;
 	if (pcurs != CURSOR_HAND)
 		return true;
-	if (ActiveStore != TalkID::None)
+	if (IsPlayerInStore())
 		return true;
 
 	Item *item = &Stash.stashList[c];

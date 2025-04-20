@@ -17,6 +17,7 @@
 
 #include "DiabloUI/text_input.hpp"
 #include "automap.h"
+#include "controls/control_mode.hpp"
 #include "controls/modifier_hints.h"
 #include "controls/plrctrls.h"
 #include "cursor.h"
@@ -28,7 +29,7 @@
 #include "engine/render/text_render.hpp"
 #include "engine/trn.hpp"
 #include "gamemenu.h"
-#include "init.h"
+#include "headless_mode.hpp"
 #include "inv.h"
 #include "inv_iterators.hpp"
 #include "levels/setmaps.h"
@@ -43,9 +44,11 @@
 #include "panels/spell_book.hpp"
 #include "panels/spell_icons.hpp"
 #include "panels/spell_list.hpp"
+#include "pfile.h"
 #include "playerdat.hpp"
 #include "qol/stash.h"
 #include "qol/xpbar.h"
+#include "quick_messages.hpp"
 #include "stores.h"
 #include "towners.h"
 #include "utils/algorithm/container.hpp"
@@ -580,43 +583,41 @@ std::string TextCmdLevelSeed(const std::string_view parameter)
 	    "Storybook: ", DungeonSeeds[16]);
 }
 
-//#ifdef _DEBUG
 std::string TextCmdSpawnItem(const std::string_view parameter)
 {
-    std::string ret = "Spawned";
+	std::string ret = "Spawned";
 
-    if (parameter.empty()) {
-        ret = "Provide item name.";
-        return ret;
-    }
+	if (parameter.empty()) {
+		ret = "Provide item name.";
+		return ret;
+	}
 
-    const std::string param = AsciiStrToLower(parameter);
+	const std::string param = AsciiStrToLower(parameter);
 
-    for (int i = 1; i < 10; i++) {
-        DebugSpawnItem(param);
-    }
+	for (int i = 1; i < 10; i++) {
+		DebugSpawnItem(param);
+	}
 
-    return ret;
+	return ret;
 }
 
 std::string TextCmdSpawnUnique(const std::string_view parameter)
 {
-    std::string ret = "Spawned";
+	std::string ret = "Spawned";
 
-    if (parameter.empty()) {
-        ret = "Provide item name.";
-        return ret;
-    }
+	if (parameter.empty()) {
+		ret = "Provide item name.";
+		return ret;
+	}
 
-    const std::string param = AsciiStrToLower(parameter);
+	const std::string param = AsciiStrToLower(parameter);
 
-    for (int i = 1; i < 10; i++) {
-        DebugSpawnUniqueItem(param);
-    }
+	for (int i = 1; i < 10; i++) {
+		DebugSpawnUniqueItem(param);
+	}
 
-    return ret;
+	return ret;
 }
-//#endif
 
 std::vector<TextCmdItem> TextCmdList = {
 	{ "/help", N_("Prints help overview or help for a specific command."), N_("[command]"), &TextCmdHelp },
@@ -624,10 +625,8 @@ std::vector<TextCmdItem> TextCmdList = {
 	{ "/arenapot", N_("Gives Arena Potions."), N_("<number>"), &TextCmdArenaPot },
 	{ "/inspect", N_("Inspects stats and equipment of another player."), N_("<player name>"), &TextCmdInspect },
 	{ "/seedinfo", N_("Show seed infos for current level."), "", &TextCmdLevelSeed },
-//#ifdef _DEBUG
 	{ "/si", N_("Spawns item."), N_("<item name>"), &TextCmdSpawnItem },
 	{ "/su", N_("Spawns unique item."), N_("<item name>"), &TextCmdSpawnUnique },
-//#endif
 };
 
 bool CheckChatCommand(const std::string_view text)
@@ -729,7 +728,7 @@ bool IsLevelUpButtonVisible()
 	if (ControlMode == ControlTypes::VirtualGamepad) {
 		return false;
 	}
-	if (ActiveStore != TalkID::None || IsStashOpen) {
+	if (IsPlayerInStore() || IsStashOpen) {
 		return false;
 	}
 	if (QuestLogIsOpen && GetLeftPanel().contains(GetMainPanel().position + Displacement { 0, -74 })) {
@@ -783,11 +782,7 @@ void CalculatePanelAreas()
 
 bool IsChatAvailable()
 {
-#ifdef _DEBUG
-    return true;
-#else
-    return gbIsMultiplayer;
-#endif
+	return true;
 }
 
 void FocusOnCharInfo()
@@ -1224,6 +1219,19 @@ void CheckMainPanelButtonUp()
 			DoAutoMap();
 			break;
 		case PanelButtonMainmenu:
+			if (MyPlayerIsDead) {
+				if (!gbIsMultiplayer) {
+					if (gbValidSaveFile)
+						gamemenu_load_game(false);
+					else
+						gamemenu_exit_game(false);
+				} else {
+					NetSendCmd(true, CMD_RETOWN);
+				}
+				break;
+			} else if (MyPlayer->_pHitPoints == 0) {
+				break;
+			}
 			qtextflag = false;
 			gamemenu_handle_previous();
 			gamemenuOff = false;
@@ -1456,6 +1464,52 @@ void RedBack(const Surface &out)
 			dst++;
 		}
 	}
+}
+
+void DrawDeathText(const Surface &out)
+{
+	const TextRenderOptions largeTextOptions {
+		.flags = UiFlags::FontSize42 | UiFlags::ColorGold | UiFlags::AlignCenter | UiFlags::VerticalCenter,
+		.spacing = 2
+	};
+	const TextRenderOptions smallTextOptions {
+		.flags = UiFlags::FontSize30 | UiFlags::ColorGold | UiFlags::AlignCenter | UiFlags::VerticalCenter,
+		.spacing = 2
+	};
+	std::string text;
+	int verticalPadding = 42;
+	Point linePosition { 0, gnScreenHeight / 2 - (verticalPadding * 2) };
+
+	text = _("You have died");
+	DrawString(out, text, linePosition, largeTextOptions);
+	linePosition.y += verticalPadding;
+
+	std::string buttonText;
+
+	switch (ControlMode) {
+	case ControlTypes::KeyboardAndMouse:
+		buttonText = _("ESC");
+		break;
+	case ControlTypes::Gamepad:
+		buttonText = ToString(GamepadType, ControllerButton_BUTTON_START);
+		break;
+	case ControlTypes::VirtualGamepad:
+		buttonText = _("Menu Button");
+		break;
+	default:
+		break;
+	}
+
+	if (!gbIsMultiplayer) {
+		if (gbValidSaveFile)
+			text = fmt::format(fmt::runtime(_("Press {} to load last save.")), buttonText);
+		else
+			text = fmt::format(fmt::runtime(_("Press {} to return to Main Menu.")), buttonText);
+
+	} else {
+		text = fmt::format(fmt::runtime(_("Press {} to restart in town.")), buttonText);
+	}
+	DrawString(out, text, linePosition, smallTextOptions);
 }
 
 void DrawGoldSplit(const Surface &out)
@@ -1732,20 +1786,24 @@ bool CheckKeypress(SDL_Keycode vkey)
 
 void DiabloHotkeyMsg(uint32_t dwMsg)
 {
+	assert(dwMsg < QuickMessages.size());
+
+#ifdef _DEBUG
+	constexpr std::string_view LuaPrefix = "/lua ";
+	for (const std::string &msg : GetOptions().Chat.szHotKeyMsgs[dwMsg]) {
+		if (!msg.starts_with(LuaPrefix)) continue;
+		InitConsole();
+		RunInConsole(std::string_view(msg).substr(LuaPrefix.size()));
+	}
+#endif
+
 	if (!IsChatAvailable()) {
 		return;
 	}
 
-	assert(dwMsg < QUICK_MESSAGE_OPTIONS);
-
-	for (const std::string &msg : sgOptions.Chat.szHotKeyMsgs[dwMsg]) {
+	for (const std::string &msg : GetOptions().Chat.szHotKeyMsgs[dwMsg]) {
 #ifdef _DEBUG
-		constexpr std::string_view LuaPrefix = "/lua ";
-		if (msg.starts_with(LuaPrefix)) {
-			InitConsole();
-			RunInConsole(std::string_view(msg).substr(LuaPrefix.size()));
-			continue;
-		}
+		if (msg.starts_with(LuaPrefix)) continue;
 #endif
 		char charMsg[MAX_SEND_STR_LEN];
 		CopyUtf8(charMsg, msg, sizeof(charMsg));

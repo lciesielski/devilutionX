@@ -3,22 +3,36 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <forward_list>
+#include <functional>
+#include <initializer_list>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <utility>
 
 #include <SDL_version.h>
 #include <ankerl/unordered_dense.h>
+#include <function_ref.hpp>
 
-#include "controls/controller.h"
+#include "appfat.h"
 #include "controls/controller_buttons.h"
-#include "controls/game_controls.h"
+#include "engine/size.hpp"
 #include "engine/sound_defs.hpp"
 #include "pack.h"
+#include "quick_messages.hpp"
 #include "utils/enum_traits.h"
 #include "utils/string_view_hash.hpp"
 
 namespace devilution {
+
+#ifndef DEFAULT_WIDTH
+#define DEFAULT_WIDTH 640
+#endif
+#ifndef DEFAULT_HEIGHT
+#define DEFAULT_HEIGHT 480
+#endif
 
 enum class StartUpGameMode : uint8_t {
 	/** @brief If hellfire is present, asks the user what game they want to start. */
@@ -47,6 +61,14 @@ enum class ScalingQuality : uint8_t {
 	NearestPixel,
 	BilinearFiltering,
 	AnisotropicFiltering,
+};
+
+enum class FrameRateControl : uint8_t {
+	None = 0,
+#ifndef USE_SDL1
+	VerticalSync = 1,
+#endif
+	CPUSleep = 2,
 };
 
 enum class Resampler : uint8_t {
@@ -113,7 +135,7 @@ public:
 	[[nodiscard]] virtual OptionEntryType GetType() const = 0;
 	[[nodiscard]] OptionEntryFlags GetFlags() const;
 
-	void SetValueChangedCallback(std::function<void()> callback);
+	void SetValueChangedCallback(tl::function_ref<void()> callback);
 
 	[[nodiscard]] virtual std::string_view GetValueDescription() const = 0;
 	virtual void LoadFromIni(std::string_view category) = 0;
@@ -121,14 +143,16 @@ public:
 
 	OptionEntryFlags flags;
 
-protected:
+public:
 	std::string_view key;
+
+protected:
 	const char *name;
 	const char *description;
 	void NotifyValueChanged();
 
 private:
-	std::function<void()> callback;
+	std::optional<tl::function_ref<void()>> callback_;
 };
 
 class OptionEntryBoolean : public OptionEntryBase {
@@ -326,19 +350,18 @@ public:
 	[[nodiscard]] std::string_view GetListDescription(size_t index) const override;
 	[[nodiscard]] size_t GetActiveListIndex() const override;
 	void SetActiveListIndex(size_t index) override;
-	void InvalidateList();
 
-	Size operator*() const
+	void setAvailableResolutions(std::vector<std::pair<Size, std::string>> &&resolutions)
 	{
-		return size;
+		resolutions_ = std::move(resolutions);
 	}
+
+	Size operator*() const { return size_; }
 
 private:
 	/** @brief View size. */
-	Size size;
-	mutable std::vector<std::pair<Size, std::string>> resolutions;
-
-	void CheckResolutionsAreInitialized() const;
+	Size size_;
+	std::vector<std::pair<Size, std::string>> resolutions_;
 };
 
 class OptionEntryResampler : public OptionEntryListBase {
@@ -424,7 +447,6 @@ struct StartUpOptions : OptionCategoryBase {
 	StartUpOptions();
 	std::vector<OptionEntryBase *> GetEntries() override;
 
-	OptionEntryBoolean machineLearning;
 	/** @brief Play game intro video on diablo startup. */
 	OptionEntryEnum<StartUpIntro> diabloIntro;
 	/** @brief Play game intro video on hellfire startup. */
@@ -501,13 +523,15 @@ struct GraphicsOptions : OptionCategoryBase {
 	OptionEntryEnum<ScalingQuality> scaleQuality;
 	/** @brief Only scale by values divisible by the width and height. */
 	OptionEntryBoolean integerScaling;
-	/** @brief Enable vsync on the output. */
-	OptionEntryBoolean vSync;
 #endif
-	/** @brief Gamma correction level. */
-	OptionEntryInt<int> gammaCorrection;
+	/** @brief Limit frame rate either for vsync or CPU load. */
+	OptionEntryEnum<FrameRateControl> frameRateControl;
+	/** @brief Brightness level. */
+	OptionEntryInt<int> brightness;
 	/** @brief Zoom on start. */
 	OptionEntryBoolean zoom;
+	/** @brief Subtile lighting for smoother light gradients. */
+	OptionEntryBoolean perPixelLighting;
 	/** @brief Enable color cycling animations. */
 	OptionEntryBoolean colorCycling;
 	/** @brief Use alternate nest palette. */
@@ -520,8 +544,6 @@ struct GraphicsOptions : OptionCategoryBase {
 	/** @brief Maximum width / height for the hardware cursor. Larger cursors fall back to software. */
 	OptionEntryInt<int> hardwareCursorMaxSize;
 #endif
-	/** @brief Enable FPS Limiter. */
-	OptionEntryBoolean limitFPS;
 	/** @brief Adjusts controls UI for tablets. */
 	OptionEntryBoolean adjustControlsForTablets;
 	/** @brief Show FPS, even without the -f command line flag. */
@@ -650,7 +672,7 @@ struct ChatOptions : OptionCategoryBase {
 	std::vector<OptionEntryBase *> GetEntries() override;
 
 	/** @brief Quick chat messages. */
-	std::vector<std::string> szHotKeyMsgs[QUICK_MESSAGE_OPTIONS];
+	std::vector<std::string> szHotKeyMsgs[QuickMessages.size()];
 };
 
 struct LanguageOptions : OptionCategoryBase {
@@ -693,10 +715,13 @@ struct KeymapperOptions : OptionCategoryBase {
 
 		bool SetValue(int value);
 
-	private:
-		uint32_t defaultKey;
+		[[nodiscard]] bool isEnabled() const { return !enable || enable(); }
+
 		std::function<void()> actionPressed;
 		std::function<void()> actionReleased;
+
+	private:
+		uint32_t defaultKey;
 		std::function<bool()> enable;
 		uint32_t boundKey = SDLK_UNKNOWN;
 		unsigned dynamicIndex;
@@ -716,10 +741,9 @@ struct KeymapperOptions : OptionCategoryBase {
 	    std::function<bool()> enable = nullptr,
 	    unsigned index = 0);
 	void CommitActions();
-	void KeyPressed(uint32_t key) const;
-	void KeyReleased(SDL_Keycode key) const;
-	bool IsTextEntryKey(SDL_Keycode vkey) const;
-	bool IsNumberEntryKey(SDL_Keycode vkey) const;
+
+	[[nodiscard]] const Action *findAction(uint32_t key) const;
+
 	std::string_view KeyNameForAction(std::string_view actionName) const;
 	uint32_t KeyForAction(std::string_view actionName) const;
 
@@ -758,12 +782,15 @@ struct PadmapperOptions : OptionCategoryBase {
 
 		bool SetValue(ControllerButtonCombo value);
 
-	private:
-		ControllerButtonCombo defaultInput;
+		[[nodiscard]] bool isEnabled() const { return !enable || enable(); }
+
 		std::function<void()> actionPressed;
 		std::function<void()> actionReleased;
+		ControllerButtonCombo boundInput;
+
+	private:
+		ControllerButtonCombo defaultInput;
 		std::function<bool()> enable;
-		ControllerButtonCombo boundInput {};
 		mutable GamepadLayout boundInputDescriptionType = GamepadLayout::Generic;
 		mutable std::string boundInputDescription;
 		mutable std::string boundInputShortDescription;
@@ -787,23 +814,38 @@ struct PadmapperOptions : OptionCategoryBase {
 	    std::function<bool()> enable = nullptr,
 	    unsigned index = 0);
 	void CommitActions();
-	void ButtonPressed(ControllerButton button);
-	void ButtonReleased(ControllerButton button, bool invokeAction = true);
-	void ReleaseAllActiveButtons();
-	bool IsActive(std::string_view actionName) const;
-	std::string_view ActionNameTriggeredByButtonEvent(ControllerButtonEvent ctrlEvent) const;
 	std::string_view InputNameForAction(std::string_view actionName, bool useShortName = false) const;
 	ControllerButtonCombo ButtonComboForAction(std::string_view actionName) const;
 
-private:
+	[[nodiscard]] const Action *findAction(ControllerButton button, tl::function_ref<bool(ControllerButton)> isModifierPressed) const;
+
 	std::forward_list<Action> actions;
-	std::array<const Action *, enum_size<ControllerButton>::value> buttonToReleaseAction;
+
+private:
 	std::array<std::string, enum_size<ControllerButton>::value> buttonToButtonName;
 	ankerl::unordered_dense::segmented_map<std::string, ControllerButton, StringViewHash, StringViewEquals> buttonNameToButton;
 	bool committed = false;
+};
 
-	const Action *FindAction(ControllerButton button) const;
-	bool CanDeferToMovementHandler(const Action &action) const;
+struct ModOptions : OptionCategoryBase {
+	ModOptions();
+	std::vector<std::string_view> GetActiveModList();
+	std::vector<std::string_view> GetModList();
+	std::vector<OptionEntryBase *> GetEntries() override;
+
+private:
+	struct ModEntry {
+		// OptionEntryBase::key references ModEntry::name.
+		// The implicit copy constructor would copy that reference instead of referencing the copy.
+		ModEntry(const ModEntry &) = delete;
+
+		ModEntry(std::string_view name);
+		std::string name;
+		OptionEntryBoolean enabled;
+	};
+
+	std::forward_list<ModEntry> &GetModEntries();
+	std::optional<std::forward_list<ModEntry>> modEntries;
 };
 
 struct Options {
@@ -820,6 +862,7 @@ struct Options {
 	LanguageOptions Language;
 	KeymapperOptions Keymapper;
 	PadmapperOptions Padmapper;
+	ModOptions Mods;
 
 	[[nodiscard]] std::vector<OptionCategoryBase *> GetCategories()
 	{
@@ -837,11 +880,15 @@ struct Options {
 			&Chat,
 			&Keymapper,
 			&Padmapper,
+			&Mods,
 		};
 	}
 };
 
-extern DVL_API_FOR_TEST Options sgOptions;
+/**
+ * @brief Get the Options singleton object
+ */
+[[nodiscard]] Options &GetOptions();
 
 bool HardwareCursorSupported();
 

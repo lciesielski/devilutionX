@@ -15,15 +15,17 @@
 
 #include "DiabloUI/diabloui.h"
 #include "control.h"
+#include "controls/control_mode.hpp"
 #include "controls/plrctrls.h"
 #include "doom.h"
-#include "engine.h"
 #include "engine/backbuffer_state.hpp"
 #include "engine/demomode.h"
 #include "engine/point.hpp"
 #include "engine/points_in_rectangle_range.hpp"
 #include "engine/render/clx_render.hpp"
+#include "engine/render/primitive_render.hpp"
 #include "engine/trn.hpp"
+#include "headless_mode.hpp"
 #include "hwcursor.hpp"
 #include "inv.h"
 #include "levels/trigs.h"
@@ -34,6 +36,7 @@
 #include "towners.h"
 #include "track.h"
 #include "utils/attributes.h"
+#include "utils/is_of.hpp"
 #include "utils/language.h"
 #include "utils/sdl_bilinear_scale.hpp"
 #include "utils/surface_to_clx.hpp"
@@ -254,7 +257,7 @@ bool TrySelectPixelBased(Point tile)
 		const Point renderPosition = GetScreenPosition(renderingTile) + renderingOffset;
 		Point spriteTopLeft = renderPosition - Displacement { 0, sprite.height() };
 		Size spriteSize = { sprite.width(), sprite.height() };
-		if (*sgOptions.Graphics.zoom) {
+		if (*GetOptions().Graphics.zoom) {
 			spriteSize *= 2;
 			spriteTopLeft *= 2;
 		}
@@ -262,7 +265,7 @@ bool TrySelectPixelBased(Point tile)
 		if (!spriteCoords.contains(MousePosition))
 			return false;
 		Point pointInSprite = Point { 0, 0 } + (MousePosition - spriteCoords.position);
-		if (*sgOptions.Graphics.zoom)
+		if (*GetOptions().Graphics.zoom)
 			pointInSprite /= 2;
 		return IsPointWithinClx(pointInSprite, sprite);
 	};
@@ -664,7 +667,7 @@ void AlterMousePositionViaScrolling(Point &screenPosition, Rectangle mainPanel)
  */
 void AlterMousePositionViaZoom(Point &screenPosition)
 {
-	if (*sgOptions.Graphics.zoom) {
+	if (*GetOptions().Graphics.zoom) {
 		screenPosition.x /= 2;
 		screenPosition.y /= 2;
 	}
@@ -720,7 +723,7 @@ Point ConvertToTileGrid(Point &screenPosition)
 		currentTile.y++;
 	}
 
-	if (*sgOptions.Graphics.zoom) {
+	if (*GetOptions().Graphics.zoom) {
 		screenPosition.y -= TILE_HEIGHT / 4;
 	}
 

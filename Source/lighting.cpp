@@ -13,11 +13,11 @@
 #include <expected.hpp>
 
 #include "automap.h"
-#include "diablo.h"
 #include "engine/load_file.hpp"
 #include "engine/points_in_rectangle_range.hpp"
 #include "player.h"
 #include "utils/attributes.h"
+#include "utils/is_of.hpp"
 #include "utils/status_macros.hpp"
 
 namespace devilution {
@@ -361,8 +361,8 @@ void MakeLightTable()
 		for (int offsetX = 0; offsetX < 8; offsetX++) {
 			for (int y = 0; y < 16; y++) {
 				for (int x = 0; x < 16; x++) {
-					int a = (8 * x - offsetY);
-					int b = (8 * y - offsetX);
+					int a = (8 * x - offsetX);
+					int b = (8 * y - offsetY);
 					LightConeInterpolations[offsetX][offsetY][x][y] = static_cast<uint8_t>(sqrt(a * a + b * b));
 				}
 			}
@@ -598,7 +598,7 @@ void ProcessVisionList()
 		if (!VisionActive[id])
 			continue;
 		Light &vision = VisionList[id];
-		if (!player.plractive || !player.isOnActiveLevel()) {
+		if (!player.plractive || !player.isOnActiveLevel() || (player._pLvlChanging && &player != MyPlayer)) {
 			DoUnVision(vision.position.tile, vision.radius);
 			VisionActive[id] = false;
 			continue;

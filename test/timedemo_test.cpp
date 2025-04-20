@@ -2,8 +2,11 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include "diablo.h"
+#include "engine/assets.hpp"
 #include "engine/demomode.h"
+#include "game_mode.hpp"
+#include "headless_mode.hpp"
+#include "init.h"
 #include "lua/lua.hpp"
 #include "monstdat.h"
 #include "options.h"
@@ -47,6 +50,7 @@ void RunTimedemo(std::string timedemoFolderName)
 
 	InitKeymapActions();
 	LoadOptions();
+	demo::OverrideOptions();
 	LuaInitialize();
 
 	const int demoNumber = 0;

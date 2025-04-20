@@ -12,7 +12,7 @@
 #include <expected.hpp>
 
 #include "control.h"
-#include "engine.h"
+#include "controls/input.h"
 #include "engine/clx_sprite.hpp"
 #include "engine/dx.h"
 #include "engine/events.hpp"
@@ -20,9 +20,12 @@
 #include "engine/load_clx.hpp"
 #include "engine/palette.h"
 #include "engine/render/clx_render.hpp"
+#include "engine/render/primitive_render.hpp"
+#include "game_mode.hpp"
+#include "headless_mode.hpp"
 #include "hwcursor.hpp"
-#include "init.h"
 #include "loadsave.h"
+#include "multi.h"
 #include "pfile.h"
 #include "plrmsg.h"
 #include "utils/log.hpp"
@@ -37,7 +40,7 @@ namespace devilution {
 
 namespace {
 
-#if defined(__APPLE__) && defined(USE_SDL1)
+#if (defined(__APPLE__) || defined(__3DS__)) && defined(USE_SDL1)
 // On Tiger PPC, SDL_PushEvent from a background thread appears to do nothing.
 #define SDL_PUSH_EVENT_BG_THREAD_WORKS 0
 #else
@@ -471,7 +474,7 @@ void InitRendering()
 void CheckShouldSkipRendering()
 {
 	if (!ProgressEventHandlerState.skipRendering) return;
-	const bool shouldSkip = ProgressEventHandlerState.loadStartedAt + *sgOptions.Gameplay.skipLoadingScreenThresholdMs > SDL_GetTicks();
+	const bool shouldSkip = ProgressEventHandlerState.loadStartedAt + *GetOptions().Gameplay.skipLoadingScreenThresholdMs > SDL_GetTicks();
 	if (shouldSkip) return;
 	ProgressEventHandlerState.skipRendering = false;
 	if (!HeadlessMode) InitRendering();
@@ -503,7 +506,7 @@ void ProgressEventHandler(const SDL_Event &event, uint16_t modState)
 				if (RenderDirectlyToOutputSurface && PalSurface != nullptr) {
 					// The loading thread sets `orig_palette`, so we make sure to use
 					// our own palette for drawing the foreground.
-					ApplyGamma(logical_palette, ProgressEventHandlerState.palette, 256);
+					ApplyToneMapping(logical_palette, ProgressEventHandlerState.palette, 256);
 
 					// Ensure that all back buffers have the full progress bar.
 					const void *initialPixels = PalSurface->pixels;
@@ -681,9 +684,9 @@ void ShowProgress(interface_mode uMsg)
 	while (true) {
 		CheckShouldSkipRendering();
 		SDL_Event event;
-		// We use the real `SDL_PollEvent` here instead of `FetchEvent`
+		// We use the real `PollEvent` here instead of `FetchMessage`
 		// to process real events rather than the recorded ones in demo mode.
-		while (SDL_PollEvent(&event)) {
+		while (PollEvent(&event)) {
 			if (!processEvent(event)) return;
 		}
 #if !SDL_PUSH_EVENT_BG_THREAD_WORKS

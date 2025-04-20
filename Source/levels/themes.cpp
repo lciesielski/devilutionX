@@ -13,11 +13,13 @@
 #include "engine/points_in_rectangle_range.hpp"
 #include "engine/random.hpp"
 #include "items.h"
+#include "levels/tile_properties.hpp"
 #include "levels/trigs.h"
 #include "monster.h"
 #include "objects.h"
 #include "quests.h"
 #include "utils/algorithm/container.hpp"
+#include "utils/is_of.hpp"
 #include "utils/str_cat.hpp"
 
 namespace devilution {

@@ -10,23 +10,27 @@
 
 #include <algorithm>
 #include <array>
+#include <string_view>
 
 #include "diablo.h"
-#include "engine.h"
 #include "engine/actor_position.hpp"
 #include "engine/animationinfo.h"
 #include "engine/clx_sprite.hpp"
+#include "engine/displacement.hpp"
 #include "engine/path.h"
 #include "engine/point.hpp"
+#include "game_mode.hpp"
 #include "interfac.h"
 #include "items.h"
 #include "items/validation.h"
+#include "levels/dun_tile.hpp"
 #include "levels/gendung.h"
 #include "multi.h"
 #include "playerdat.hpp"
 #include "spelldat.h"
 #include "utils/attributes.h"
 #include "utils/enum_traits.h"
+#include "utils/is_of.hpp"
 
 namespace devilution {
 
@@ -262,7 +266,7 @@ struct Player {
 	int _pILMaxDam;
 	uint32_t _pExperience;
 	PLR_MODE _pmode;
-	int8_t walkpath[MaxPathLength];
+	int8_t walkpath[MaxPathLengthPlayer];
 	bool plractive;
 	action_id destAction;
 	int destParam1;
@@ -365,6 +369,11 @@ public:
 	uint8_t pDiabloKillLevel;
 	uint16_t wReflections;
 	ItemSpecialEffectHf pDamAcFlags;
+
+	[[nodiscard]] std::string_view name() const
+	{
+		return _pName;
+	}
 
 	/**
 	 * @brief Convenience function to get the base stats/bonuses for this player's class
@@ -782,7 +791,7 @@ public:
 	}
 	[[nodiscard]] Displacement getRenderingOffset(const ClxSprite sprite) const
 	{
-		Displacement offset = { -CalculateWidth2(sprite.width()), 0 };
+		Displacement offset = { -CalculateSpriteTileCenterX(sprite.width()), 0 };
 		if (isWalking())
 			offset += GetOffsetForWalking(AnimInfo, _pdir);
 		return offset;
@@ -963,7 +972,6 @@ void ProcessPlayers();
 void ClrPlrPath(Player &player);
 bool PosOkPlayer(const Player &player, Point position);
 void MakePlrPath(Player &player, Point targetPosition, bool endspace);
-void CalcPlrStaff(Player &player);
 void CheckPlrSpell(bool isShiftHeld, SpellID spellID = MyPlayer->_pRSpell, SpellType spellType = MyPlayer->_pRSplType);
 void SyncPlrAnim(Player &player);
 void SyncInitPlrPos(Player &player);

@@ -15,6 +15,7 @@
 #include <string>
 #include <string_view>
 
+#include <SDL_endian.h>
 #include <expected.hpp>
 #include <fmt/core.h>
 #include <fmt/format.h>
@@ -30,10 +31,12 @@
 #include "engine/render/clx_render.hpp"
 #include "engine/sound_position.hpp"
 #include "engine/world_tile.hpp"
-#include "init.h"
+#include "game_mode.hpp"
+#include "headless_mode.hpp"
 #include "levels/crypt.h"
 #include "levels/drlg_l4.h"
 #include "levels/themes.h"
+#include "levels/tile_properties.hpp"
 #include "levels/trigs.h"
 #include "lighting.h"
 #include "minitext.h"
@@ -47,12 +50,12 @@
 #include "utils/attributes.h"
 #include "utils/cl2_to_clx.hpp"
 #include "utils/file_name_generator.hpp"
+#include "utils/is_of.hpp"
 #include "utils/language.h"
 #include "utils/log.hpp"
 #include "utils/static_vector.hpp"
 #include "utils/status_macros.hpp"
 #include "utils/str_cat.hpp"
-#include "utils/utf8.hpp"
 
 #ifdef _DEBUG
 #include "debug.h"
@@ -1702,12 +1705,12 @@ bool IsTileAccessible(const Monster &monster, Point position)
 
 bool AiPlanWalk(Monster &monster)
 {
-	int8_t path[MaxPathLength];
+	int8_t path[MaxPathLengthMonsters];
 
 	/** Maps from walking path step to facing direction. */
 	const Direction plr2monst[9] = { Direction::South, Direction::NorthEast, Direction::NorthWest, Direction::SouthEast, Direction::SouthWest, Direction::North, Direction::East, Direction::South, Direction::West };
 
-	if (FindPath([&monster](Point position) { return IsTileAccessible(monster, position); }, monster.position.tile, monster.enemyPosition, path) == 0) {
+	if (FindPath(CanStep, [&monster](Point position) { return IsTileAccessible(monster, position); }, monster.position.tile, monster.enemyPosition, path, MaxPathLengthMonsters) == 0) {
 		return false;
 	}
 
@@ -4327,7 +4330,7 @@ void M_FallenFear(Point position)
 
 void PrintMonstHistory(int mt)
 {
-	if (*sgOptions.Gameplay.showMonsterType) {
+	if (*GetOptions().Gameplay.showMonsterType) {
 		AddInfoBoxString(fmt::format(fmt::runtime(_("Type: {:s}  Kills: {:d}")), GetMonsterTypeText(MonstersData[mt]), MonsterKillCounts[mt]));
 	} else {
 		AddInfoBoxString(fmt::format(fmt::runtime(_("Total kills: {:d}")), MonsterKillCounts[mt]));
@@ -4396,7 +4399,7 @@ void PrintMonstHistory(int mt)
 void PrintUniqueHistory()
 {
 	Monster &monster = Monsters[pcursmonst];
-	if (*sgOptions.Gameplay.showMonsterType) {
+	if (*GetOptions().Gameplay.showMonsterType) {
 		AddInfoBoxString(fmt::format(fmt::runtime(_("Type: {:s}")), GetMonsterTypeText(monster.data())));
 	}
 
@@ -4797,7 +4800,7 @@ bool Monster::isPossibleToHit() const
 	return !(hitPoints >> 6 <= 0
 	    || talkMsg != TEXT_NONE
 	    || (type().type == MT_ILLWEAV && goal == MonsterGoal::Retreat)
-	    || mode == MonsterMode::Charge
+	    || (IsAnyOf(mode, MonsterMode::Charge, MonsterMode::Death))
 	    || (IsAnyOf(type().type, MT_COUNSLR, MT_MAGISTR, MT_CABALIST, MT_ADVOCATE) && goal != MonsterGoal::Normal));
 }
 

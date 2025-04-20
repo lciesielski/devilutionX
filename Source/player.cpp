@@ -10,6 +10,7 @@
 #include <fmt/core.h>
 
 #include "control.h"
+#include "controls/control_mode.hpp"
 #include "controls/plrctrls.h"
 #include "cursor.h"
 #include "dead.h"
@@ -24,10 +25,12 @@
 #include "engine/render/clx_render.hpp"
 #include "engine/trn.hpp"
 #include "engine/world_tile.hpp"
+#include "game_mode.hpp"
 #include "gamemenu.h"
+#include "headless_mode.hpp"
 #include "help.h"
-#include "init.h"
 #include "inv_iterators.hpp"
+#include "levels/tile_properties.hpp"
 #include "levels/trigs.h"
 #include "lighting.h"
 #include "loadsave.h"
@@ -43,6 +46,7 @@
 #include "spells.h"
 #include "stores.h"
 #include "towners.h"
+#include "utils/is_of.hpp"
 #include "utils/language.h"
 #include "utils/log.hpp"
 #include "utils/str_cat.hpp"
@@ -391,7 +395,7 @@ void InitLevelChange(Player &player)
 bool DoWalk(Player &player)
 {
 	// Play walking sound effect on certain animation frames
-	if (*sgOptions.Audio.walkingSound && (leveltype != DTYPE_TOWN || sgGameInitInfo.bRunInTown == 0)) {
+	if (*GetOptions().Audio.walkingSound && (leveltype != DTYPE_TOWN || sgGameInitInfo.bRunInTown == 0)) {
 		if (player.AnimInfo.currentFrame == 0
 		    || player.AnimInfo.currentFrame == 4) {
 			PlaySfxLoc(SfxID::Walk, player.position.tile);
@@ -1033,9 +1037,6 @@ bool DoDeath(Player &player)
 			dFlags[player.position.tile.x][player.position.tile.y] |= DungeonFlag::DeadPlayer;
 		} else if (&player == MyPlayer && player.AnimInfo.tickCounterOfCurrentFrame == 30) {
 			MyPlayerIsDead = true;
-			if (!gbIsMultiplayer) {
-				gamemenu_on();
-			}
 		}
 	}
 
@@ -1178,11 +1179,11 @@ void CheckNewPath(Player &player, bool pmWillBeCalled)
 				break;
 			}
 
-			for (size_t j = 1; j < MaxPathLength; j++) {
+			for (size_t j = 1; j < MaxPathLengthPlayer; j++) {
 				player.walkpath[j - 1] = player.walkpath[j];
 			}
 
-			player.walkpath[MaxPathLength - 1] = WALK_NONE;
+			player.walkpath[MaxPathLengthPlayer - 1] = WALK_NONE;
 
 			if (player._pmode == PM_STAND) {
 				StartStand(player, player._pdir);
@@ -1241,22 +1242,18 @@ void CheckNewPath(Player &player, bool pmWillBeCalled)
 		case ACTION_SPELL:
 			d = GetDirection(player.position.tile, { player.destParam1, player.destParam2 });
 			StartSpell(player, d, player.destParam1, player.destParam2);
-			player.executedSpell.spellLevel = player.destParam3;
 			break;
 		case ACTION_SPELLWALL:
 			StartSpell(player, static_cast<Direction>(player.destParam3), player.destParam1, player.destParam2);
 			player.tempDirection = static_cast<Direction>(player.destParam3);
-			player.executedSpell.spellLevel = player.destParam4;
 			break;
 		case ACTION_SPELLMON:
 			d = GetDirection(player.position.tile, monster->position.future);
 			StartSpell(player, d, monster->position.future.x, monster->position.future.y);
-			player.executedSpell.spellLevel = player.destParam2;
 			break;
 		case ACTION_SPELLPLR:
 			d = GetDirection(player.position.tile, target->position.future);
 			StartSpell(player, d, target->position.future.x, target->position.future.y);
-			player.executedSpell.spellLevel = player.destParam2;
 			break;
 		case ACTION_OPERATE:
 			if (IsPlayerAdjacentToObject(player, *object)) {
@@ -1411,7 +1408,7 @@ void ValidatePlayer()
 	// This lets us catch cases where someone is editing experience directly through memory modification and reset their experience back to the expected cap.
 	if (myPlayer._pExperience > myPlayer.getNextExperienceThreshold()) {
 		myPlayer._pExperience = myPlayer.getNextExperienceThreshold();
-		if (*sgOptions.Gameplay.experienceBar) {
+		if (*GetOptions().Gameplay.experienceBar) {
 			RedrawEverything();
 		}
 	}
@@ -1460,9 +1457,9 @@ void ValidatePlayer()
 
 HeroClass GetPlayerSpriteClass(HeroClass cls)
 {
-	if (cls == HeroClass::Bard && !gbBard)
+	if (cls == HeroClass::Bard && !HaveBardAssets())
 		return HeroClass::Rogue;
-	if (cls == HeroClass::Barbarian && !gbBarbarian)
+	if (cls == HeroClass::Barbarian && !HaveBarbarianAssets())
 		return HeroClass::Warrior;
 	return cls;
 }
@@ -1923,8 +1920,8 @@ void Player::UpdatePreviewCelSprite(_cmd_id cmdId, Point point, uint16_t wParam1
 	}
 
 	if (minimalWalkDistance >= 0 && position.future != point) {
-		int8_t testWalkPath[MaxPathLength];
-		int steps = FindPath([this](Point position) { return PosOkPlayer(*this, position); }, position.future, point, testWalkPath);
+		int8_t testWalkPath[MaxPathLengthPlayer];
+		int steps = FindPath(CanStep, [this](Point position) { return PosOkPlayer(*this, position); }, position.future, point, testWalkPath, MaxPathLengthPlayer);
 		if (steps == 0) {
 			// Can't walk to desired location => stand still
 			return;
@@ -2382,7 +2379,7 @@ void Player::_addExperience(uint32_t experience, int levelDelta)
 	// ensure we only add enough experience to reach the max experience cap so we don't overflow
 	_pExperience += std::min(clampedExp, maxExperience - _pExperience);
 
-	if (*sgOptions.Gameplay.experienceBar) {
+	if (*GetOptions().Gameplay.experienceBar) {
 		RedrawEverything();
 	}
 
@@ -2619,6 +2616,7 @@ StartPlayerKill(Player &player, DeathReason deathReason)
 
 	if (&player == MyPlayer) {
 		NetSendCmdParam1(true, CMD_PLRDEAD, static_cast<uint16_t>(deathReason));
+		gamemenu_off();
 	}
 
 	const bool dropGold = !gbIsMultiplayer || !(player.isOnLevel(16) || player.isOnArenaLevel());
@@ -2678,7 +2676,7 @@ StartPlayerKill(Player &player, DeathReason deathReason)
 				Item ear;
 				InitializeItem(ear, IDI_EAR);
 				CopyUtf8(ear._iName, fmt::format(fmt::runtime("Ear of {:s}"), player._pName), sizeof(ear._iName));
-				CopyUtf8(ear._iIName, player._pName, sizeof(ear._iIName));
+				CopyUtf8(ear._iIName, player._pName, ItemNameLength);
 				switch (player._pClass) {
 				case HeroClass::Sorcerer:
 					ear._iCurs = ICURS_EAR_SORCERER;
@@ -3057,7 +3055,7 @@ void MakePlrPath(Player &player, Point targetPosition, bool endspace)
 		return;
 	}
 
-	int path = FindPath([&player](Point position) { return PosOkPlayer(player, position); }, player.position.future, targetPosition, player.walkpath);
+	int path = FindPath(CanStep, [&player](Point position) { return PosOkPlayer(player, position); }, player.position.future, targetPosition, player.walkpath, MaxPathLengthPlayer);
 	if (path == 0) {
 		return;
 	}
@@ -3067,16 +3065,6 @@ void MakePlrPath(Player &player, Point targetPosition, bool endspace)
 	}
 
 	player.walkpath[path] = WALK_NONE;
-}
-
-void CalcPlrStaff(Player &player)
-{
-	player._pISpells = 0;
-	if (!player.InvBody[INVLOC_HAND_LEFT].isEmpty()
-	    && player.InvBody[INVLOC_HAND_LEFT]._iStatFlag
-	    && player.InvBody[INVLOC_HAND_LEFT]._iCharges > 0) {
-		player._pISpells |= GetSpellBitmask(player.InvBody[INVLOC_HAND_LEFT]._iSpell);
-	}
 }
 
 void CheckPlrSpell(bool isShiftHeld, SpellID spellID, SpellType spellType)
@@ -3151,18 +3139,17 @@ void CheckPlrSpell(bool isShiftHeld, SpellID spellID, SpellType spellType)
 		return;
 	}
 
-	const int spellLevel = myPlayer.GetSpellLevel(spellID);
 	const int spellFrom = 0;
 	if (IsWallSpell(spellID)) {
 		LastMouseButtonAction = MouseActionType::Spell;
 		Direction sd = GetDirection(myPlayer.position.tile, cursPosition);
-		NetSendCmdLocParam5(true, CMD_SPELLXYD, cursPosition, static_cast<int8_t>(spellID), static_cast<uint8_t>(spellType), static_cast<uint16_t>(sd), spellLevel, spellFrom);
+		NetSendCmdLocParam4(true, CMD_SPELLXYD, cursPosition, static_cast<int8_t>(spellID), static_cast<uint8_t>(spellType), static_cast<uint16_t>(sd), spellFrom);
 	} else if (pcursmonst != -1 && !isShiftHeld) {
 		LastMouseButtonAction = MouseActionType::SpellMonsterTarget;
-		NetSendCmdParam5(true, CMD_SPELLID, pcursmonst, static_cast<int8_t>(spellID), static_cast<uint8_t>(spellType), spellLevel, spellFrom);
+		NetSendCmdParam4(true, CMD_SPELLID, pcursmonst, static_cast<int8_t>(spellID), static_cast<uint8_t>(spellType), spellFrom);
 	} else if (PlayerUnderCursor != nullptr && !isShiftHeld && !myPlayer.friendlyMode) {
 		LastMouseButtonAction = MouseActionType::SpellPlayerTarget;
-		NetSendCmdParam5(true, CMD_SPELLPID, PlayerUnderCursor->getId(), static_cast<int8_t>(spellID), static_cast<uint8_t>(spellType), spellLevel, spellFrom);
+		NetSendCmdParam4(true, CMD_SPELLPID, PlayerUnderCursor->getId(), static_cast<int8_t>(spellID), static_cast<uint8_t>(spellType), spellFrom);
 	} else {
 		Point targetedTile = cursPosition;
 		if (spellID == SpellID::Teleport && myPlayer.executedSpell.spellId == SpellID::Teleport) {
@@ -3175,7 +3162,7 @@ void CheckPlrSpell(bool isShiftHeld, SpellID spellID, SpellType spellType)
 			}
 		}
 		LastMouseButtonAction = MouseActionType::Spell;
-		NetSendCmdLocParam4(true, CMD_SPELLXY, targetedTile, static_cast<int8_t>(spellID), static_cast<uint8_t>(spellType), spellLevel, spellFrom);
+		NetSendCmdLocParam3(true, CMD_SPELLXY, targetedTile, static_cast<int8_t>(spellID), static_cast<uint8_t>(spellType), spellFrom);
 	}
 }
 

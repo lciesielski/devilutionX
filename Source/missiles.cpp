@@ -10,6 +10,7 @@
 #include <cstdint>
 
 #include "control.h"
+#include "controls/control_mode.hpp"
 #include "controls/plrctrls.h"
 #include "crawl.hpp"
 #include "cursor.h"
@@ -21,12 +22,17 @@
 #include "engine/load_file.hpp"
 #include "engine/points_in_rectangle_range.hpp"
 #include "engine/random.hpp"
-#include "init.h"
+#include "engine/render/primitive_render.hpp"
+#include "game_mode.hpp"
+#include "headless_mode.hpp"
 #include "inv.h"
+#include "levels/dun_tile.hpp"
+#include "levels/tile_properties.hpp"
 #include "levels/trigs.h"
 #include "lighting.h"
 #include "monster.h"
 #include "spells.h"
+#include "utils/is_of.hpp"
 #include "utils/str_cat.hpp"
 
 namespace devilution {
@@ -354,8 +360,10 @@ bool Plr2PlrMHit(const Player &player, Player &target, int mindam, int maxdam, i
 		dam = target._pHitPoints / 3;
 	} else {
 		dam = RandomIntBetween(mindam, maxdam);
-		if (missileData.isArrow() && damageType == DamageType::Physical)
-			dam += player._pIBonusDamMod + player._pDamageMod + dam * player._pIBonusDam / 100;
+		if (missileData.isArrow() && damageType == DamageType::Physical) {
+			int damMod = IsAnyOf(player._pClass, HeroClass::Rogue) ? player._pDamageMod : player._pDamageMod / 2;
+			dam += player._pIBonusDamMod + damMod + dam * player._pIBonusDam / 100;
+		}
 		if (!shift)
 			dam <<= 6;
 	}
@@ -2165,7 +2173,7 @@ void InitMissileAnimationFromMonster(Missile &mis, Direction midir, const Monste
 	mis._miAnimDelay = anim.rate;
 	mis._miAnimLen = anim.frames;
 	mis._miAnimWidth = width;
-	mis._miAnimWidth2 = CalculateWidth2(width);
+	mis._miAnimWidth2 = CalculateSpriteTileCenterX(width);
 	mis._miAnimAdd = 1;
 	mis.var1 = 0;
 	mis.var2 = 0;
@@ -2969,7 +2977,8 @@ void ProcessAcidPuddle(Missile &missile)
 
 void ProcessFireWall(Missile &missile)
 {
-	constexpr int ExpLight[14] = { 2, 3, 4, 5, 5, 6, 7, 8, 9, 10, 11, 12, 12 };
+	constexpr int ExpLightLen = 12;
+	constexpr int ExpLight[ExpLightLen] = { 2, 3, 4, 5, 5, 6, 7, 8, 9, 10, 11, 12 };
 
 	missile.duration--;
 	if (missile.duration == missile.var1) {
@@ -2986,10 +2995,12 @@ void ProcessFireWall(Missile &missile)
 		missile._miDelFlag = true;
 		AddUnLight(missile._mlid);
 	}
-	if (missile._mimfnum != 0 && missile.duration != 0 && missile._miAnimAdd != -1 && missile.var2 < 12) {
+	constexpr int MaxExpLightIndex = ExpLightLen - 1;
+	if (missile._mimfnum == 0 && missile.duration != 0 && missile.var2 <= MaxExpLightIndex * 2) {
 		if (missile.var2 == 0)
 			missile._mlid = AddLight(missile.position.tile, ExpLight[0]);
-		ChangeLight(missile._mlid, missile.position.tile, ExpLight[missile.var2]);
+		int expLightIndex = MaxExpLightIndex - std::abs(missile.var2 - MaxExpLightIndex);
+		ChangeLight(missile._mlid, missile.position.tile, ExpLight[expLightIndex]);
 		missile.var2++;
 	}
 	PutMissile(missile);
@@ -3375,7 +3386,8 @@ void ProcessFlashTop(Missile &missile)
 
 void ProcessFlameWave(Missile &missile)
 {
-	constexpr int ExpLight[14] = { 2, 3, 4, 5, 5, 6, 7, 8, 9, 10, 11, 12, 12 };
+	constexpr int ExpLightLen = 12;
+	constexpr int ExpLight[ExpLightLen] = { 2, 3, 4, 5, 5, 6, 7, 8, 9, 10, 11, 12 };
 
 	// Adjust missile's position for processing
 	missile.position.tile += Direction::North;
@@ -3393,18 +3405,12 @@ void ProcessFlameWave(Missile &missile)
 	if (missile.duration == 0) {
 		missile._miDelFlag = true;
 		AddUnLight(missile._mlid);
-	}
-	if (missile._mimfnum != 0 || missile.duration == 0) {
-		if (missile.position.tile != Point { missile.var3, missile.var4 }) {
-			missile.var3 = missile.position.tile.x;
-			missile.var4 = missile.position.tile.y;
-			ChangeLight(missile._mlid, missile.position.tile, 8);
-		}
 	} else {
 		if (missile.var2 == 0)
 			missile._mlid = AddLight(missile.position.tile, ExpLight[0]);
 		ChangeLight(missile._mlid, missile.position.tile, ExpLight[missile.var2]);
-		missile.var2++;
+		if (missile.var2 < ExpLightLen - 1)
+			missile.var2++;
 	}
 	// Adjust missile's position for rendering
 	missile.position.tile += Direction::South;
@@ -3674,7 +3680,7 @@ void ProcessRhino(Missile &missile)
 	}
 	UpdateMissilePos(missile);
 	Point newPos = missile.position.tile;
-	if (!IsTileAvailable(monster, newPos) || (monster.ai == MonsterAIID::Snake && !IsTileAvailable(monster, newPosSnake))) {
+	if (!IsTileAvailable(monster, newPos) || (monster.ai == MonsterAIID::Snake && (!IsTileAvailable(monster, newPosSnake) || missile._miAnimFrame >= missile._miAnimLen))) {
 		MissToMonst(missile, prevPos);
 		missile._miDelFlag = true;
 		return;

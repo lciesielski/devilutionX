@@ -17,7 +17,7 @@
 #include "engine/render/clx_render.hpp"
 #include "engine/render/text_render.hpp"
 #include "engine/world_tile.hpp"
-#include "init.h"
+#include "game_mode.hpp"
 #include "levels/gendung.h"
 #include "levels/town.h"
 #include "levels/trigs.h"
@@ -28,6 +28,7 @@
 #include "panels/ui_panels.hpp"
 #include "stores.h"
 #include "towners.h"
+#include "utils/is_of.hpp"
 #include "utils/language.h"
 #include "utils/utf8.hpp"
 
@@ -249,7 +250,7 @@ void InitQuests()
 		}
 	}
 
-	if (!UseMultiplayerQuests() && *sgOptions.Gameplay.randomizeQuests) {
+	if (!UseMultiplayerQuests() && *GetOptions().Gameplay.randomizeQuests) {
 		// Quests are set from the seed used to generate level 15.
 		InitialiseQuestPools(DungeonSeeds[15], Quests);
 	}

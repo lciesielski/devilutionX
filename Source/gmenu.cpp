@@ -13,11 +13,13 @@
 #include "control.h"
 #include "controls/axis_direction.h"
 #include "controls/controller_motion.h"
-#include "engine.h"
 #include "engine/clx_sprite.hpp"
+#include "engine/demomode.h"
 #include "engine/load_cel.hpp"
 #include "engine/render/clx_render.hpp"
+#include "engine/render/primitive_render.hpp"
 #include "engine/render/text_render.hpp"
+#include "headless_mode.hpp"
 #include "options.h"
 #include "stores.h"
 #include "utils/language.h"
@@ -231,8 +233,9 @@ void gmenu_set_items(TMenuItem *pItem, void (*gmFunc)())
 	// BUGFIX: OOB access when sgCurrentMenuIdx is 0; should be set to NULL instead. (fixed)
 	sgpCurrItem = sgCurrentMenuIdx > 0 ? &sgpCurrentMenu[sgCurrentMenuIdx - 1] : nullptr;
 	GmenuUpDown(true);
-	if (sgpCurrentMenu == nullptr)
+	if (sgpCurrentMenu == nullptr && !demo::IsRunning()) {
 		SaveOptions();
+	}
 }
 
 void gmenu_draw(const Surface &out)

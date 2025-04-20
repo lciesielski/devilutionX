@@ -15,7 +15,8 @@
 #include "engine/load_file.hpp"
 #include "engine/random.hpp"
 #include "engine/world_tile.hpp"
-#include "init.h"
+#include "game_mode.hpp"
+#include "items.h"
 #include "levels/drlg_l1.h"
 #include "levels/drlg_l2.h"
 #include "levels/drlg_l3.h"
@@ -23,8 +24,11 @@
 #include "levels/reencode_dun_cels.hpp"
 #include "levels/town.h"
 #include "lighting.h"
-#include "options.h"
+#include "monster.h"
+#include "objects.h"
+#include "utils/algorithm/container.hpp"
 #include "utils/bitset2d.hpp"
+#include "utils/is_of.hpp"
 #include "utils/log.hpp"
 #include "utils/status_macros.hpp"
 
@@ -476,6 +480,10 @@ tl::expected<void, std::string> LoadLevelSOLData()
 		// have a few pixels that should belong to the solid tile 49 instead.
 		// Marks the sub-tile as "BlockMissile" to avoid treating it as a floor during rendering.
 		SOLData[170] |= TileProperties::BlockMissile;
+		// Fence sub-tiles 481 and 487 are substitutes for solid sub-tiles 473 and 479
+		// but are not marked as solid.
+		SOLData[481] |= TileProperties::Solid;
+		SOLData[487] |= TileProperties::Solid;
 		break;
 	case DTYPE_HELL:
 		RETURN_IF_ERROR(LoadFileInMemWithStatus("levels\\l4data\\l4.sol", SOLData));
@@ -486,6 +494,7 @@ tl::expected<void, std::string> LoadLevelSOLData()
 		break;
 	case DTYPE_CRYPT:
 		RETURN_IF_ERROR(LoadFileInMemWithStatus("nlevels\\l5data\\l5.sol", SOLData));
+		SOLData[142] = TileProperties::None; // Tile is incorrectly marked as being solid
 		break;
 	default:
 		return tl::make_unexpected("LoadLevelSOLData");
@@ -529,6 +538,21 @@ void SetDungeonMicros()
 		return a.first < b.first;
 	});
 	ReencodeDungeonCels(pDungeonCels, frameToTypeList);
+
+	std::vector<std::pair<uint16_t, uint16_t>> celBlockAdjustments = ComputeCelBlockAdjustments(frameToTypeList);
+	if (celBlockAdjustments.size() == 0) return;
+	for (size_t levelPieceId = 0; levelPieceId < tileCount / blocks; levelPieceId++) {
+		for (uint32_t block = 0; block < blocks; block++) {
+			LevelCelBlock &levelCelBlock = DPieceMicros[levelPieceId].mt[block];
+			const uint16_t frame = levelCelBlock.frame();
+			const auto pair = std::make_pair(frame, frame);
+			const auto it = std::upper_bound(celBlockAdjustments.begin(), celBlockAdjustments.end(), pair,
+			    [](std::pair<uint16_t, uint16_t> p1, std::pair<uint16_t, uint16_t> p2) { return p1.first < p2.first; });
+			if (it != celBlockAdjustments.end()) {
+				levelCelBlock.data -= it->second;
+			}
+		}
+	}
 }
 
 void DRLG_InitTrans()

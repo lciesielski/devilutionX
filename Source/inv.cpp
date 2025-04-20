@@ -12,6 +12,7 @@
 #include <fmt/format.h>
 
 #include "DiabloUI/ui_flags.hpp"
+#include "controls/control_mode.hpp"
 #include "controls/plrctrls.h"
 #include "cursor.h"
 #include "engine/backbuffer_state.hpp"
@@ -23,6 +24,7 @@
 #include "engine/size.hpp"
 #include "hwcursor.hpp"
 #include "inv_iterators.hpp"
+#include "levels/tile_properties.hpp"
 #include "levels/town.h"
 #include "minitext.h"
 #include "options.h"
@@ -33,6 +35,7 @@
 #include "stores.h"
 #include "towners.h"
 #include "utils/format_int.hpp"
+#include "utils/is_of.hpp"
 #include "utils/language.h"
 #include "utils/sdl_geometry.h"
 #include "utils/str_cat.hpp"
@@ -276,7 +279,7 @@ bool AutoEquip(Player &player, const Item &item, inv_body_loc bodyLocation, bool
 	if (persistItem) {
 		ChangeEquipment(player, bodyLocation, item, sendNetworkMessage);
 
-		if (sendNetworkMessage && *sgOptions.Audio.autoEquipSound) {
+		if (sendNetworkMessage && *GetOptions().Audio.autoEquipSound) {
 			PlaySFX(ItemInvSnds[ItemCAnimTbl[item._iCurs]]);
 		}
 
@@ -570,6 +573,10 @@ void CheckInvPaste(Player &player, Point cursorPosition)
 			return;
 	}
 
+	if (&player == MyPlayer) {
+		PlaySFX(ItemInvSnds[ItemCAnimTbl[player.HoldItem._iCurs]]);
+	}
+
 	// Select the parameters that go into
 	// ChangeEquipment and add it to post switch
 	switch (location) {
@@ -598,7 +605,6 @@ void CheckInvPaste(Player &player, Point cursorPosition)
 
 	CalcPlrInv(player, true);
 	if (&player == MyPlayer) {
-		PlaySFX(ItemInvSnds[ItemCAnimTbl[player.HoldItem._iCurs]]);
 		NewCursor(player.HoldItem);
 	}
 }
@@ -1351,23 +1357,23 @@ bool AutoEquipEnabled(const Player &player, const Item &item)
 	if (item.isWeapon()) {
 		// Monk can use unarmed attack as an encouraged option, thus we do not automatically equip weapons on him so as to not
 		// annoy players who prefer that playstyle.
-		return player._pClass != HeroClass::Monk && *sgOptions.Gameplay.autoEquipWeapons;
+		return player._pClass != HeroClass::Monk && *GetOptions().Gameplay.autoEquipWeapons;
 	}
 
 	if (item.isArmor()) {
-		return *sgOptions.Gameplay.autoEquipArmor;
+		return *GetOptions().Gameplay.autoEquipArmor;
 	}
 
 	if (item.isHelm()) {
-		return *sgOptions.Gameplay.autoEquipHelms;
+		return *GetOptions().Gameplay.autoEquipHelms;
 	}
 
 	if (item.isShield()) {
-		return *sgOptions.Gameplay.autoEquipShields;
+		return *GetOptions().Gameplay.autoEquipShields;
 	}
 
 	if (item.isJewelry()) {
-		return *sgOptions.Gameplay.autoEquipJewelry;
+		return *GetOptions().Gameplay.autoEquipJewelry;
 	}
 
 	return true;
@@ -1753,7 +1759,7 @@ void AutoGetItem(Player &player, Item *itemPointer, int ii)
 	}
 
 	if (done) {
-		if (!autoEquipped && *sgOptions.Audio.itemPickupSound && &player == MyPlayer) {
+		if (!autoEquipped && *GetOptions().Audio.itemPickupSound && &player == MyPlayer) {
 			PlaySFX(SfxID::GrabItem);
 		}
 
@@ -1872,7 +1878,7 @@ int SyncDropItem(Point position, _item_indexes idx, uint16_t icreateinfo, int is
 
 	Item item;
 
-	RecreateItem(*MyPlayer, item, idx, icreateinfo, iseed, ivalue, (ibuff & CF_HELLFIRE) != 0);
+	RecreateItem(*MyPlayer, item, idx, icreateinfo, iseed, ivalue, ibuff);
 	if (id != 0)
 		item._iIdentified = true;
 	item._iMaxDur = mdur;
@@ -1883,7 +1889,6 @@ int SyncDropItem(Point position, _item_indexes idx, uint16_t icreateinfo, int is
 		item._iPLToHit = ClampToHit(item, toHit);
 		item._iMaxDam = ClampMaxDam(item, maxDam);
 	}
-	item.dwBuff = ibuff;
 
 	return PlaceItemInWorld(std::move(item), position);
 }
@@ -2035,7 +2040,7 @@ void ConsumeStaffCharge(Player &player)
 		return;
 
 	staff._iCharges--;
-	CalcPlrStaff(player);
+	CalcPlrInv(player, false);
 }
 
 bool CanUseStaff(Player &player, SpellID spellId)
@@ -2065,7 +2070,7 @@ bool UseInvItem(int cii)
 		return true;
 	if (pcurs != CURSOR_HAND)
 		return true;
-	if (ActiveStore != TalkID::None)
+	if (IsPlayerInStore())
 		return true;
 	if (cii < INVITEM_INV_FIRST)
 		return false;
@@ -2085,7 +2090,7 @@ bool UseInvItem(int cii)
 		speedlist = true;
 
 		// If selected speedlist item exists in InvList, use the InvList item.
-		for (int i = 0; i < player._pNumInv && *sgOptions.Gameplay.autoRefillBelt; i++) {
+		for (int i = 0; i < player._pNumInv && *GetOptions().Gameplay.autoRefillBelt; i++) {
 			if (player.InvList[i]._iMiscId == item->_iMiscId && player.InvList[i]._iSpell == item->_iSpell) {
 				c = i;
 				item = &player.InvList[c];
@@ -2096,7 +2101,7 @@ bool UseInvItem(int cii)
 		}
 
 		// If speedlist item is not inventory, use same item at the end of the speedlist if exists.
-		if (speedlist && *sgOptions.Gameplay.autoRefillBelt) {
+		if (speedlist && *GetOptions().Gameplay.autoRefillBelt) {
 			for (int i = INVITEM_BELT_LAST - INVITEM_BELT_FIRST; i > c; i--) {
 				Item &candidate = player.SpdList[i];
 

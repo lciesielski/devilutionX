@@ -11,16 +11,18 @@
 
 #include <fmt/format.h>
 
+#include "controls/control_mode.hpp"
 #include "controls/plrctrls.h"
 #include "cursor.h"
 #include "engine/backbuffer_state.hpp"
-#include "engine/load_cel.hpp"
 #include "engine/random.hpp"
 #include "engine/render/clx_render.hpp"
+#include "engine/render/primitive_render.hpp"
 #include "engine/render/text_render.hpp"
 #include "engine/trn.hpp"
-#include "init.h"
+#include "game_mode.hpp"
 #include "minitext.h"
+#include "multi.h"
 #include "options.h"
 #include "panels/info_box.hpp"
 #include "qol/stash.h"
@@ -38,14 +40,14 @@ int CurrentItemIndex;
 int8_t PlayerItemIndexes[48];
 Item PlayerItems[48];
 
-Item SmithItems[SMITH_ITEMS];
+Item SmithItems[NumSmithBasicItemsHf];
 int PremiumItemCount;
 int PremiumItemLevel;
-Item PremiumItems[SMITH_PREMIUM_ITEMS];
+Item PremiumItems[NumSmithItemsHf];
 
 Item HealerItems[20];
 
-Item WitchItems[WITCH_ITEMS];
+Item WitchItems[NumWitchItemsHf];
 
 int BoyItemLevel;
 Item BoyItem;
@@ -98,7 +100,7 @@ struct STextStruct {
 };
 
 /** Text lines */
-STextStruct TextLine[STORE_LINES];
+STextStruct TextLine[NumStoreLines];
 
 /** Whether to render the player's gold amount in the top left */
 bool RenderGold;
@@ -178,7 +180,7 @@ void CalculateLineHeights()
 {
 	TextLine[0].y = 0;
 	if (IsSmallFontTall()) {
-		for (int i = 1; i < STORE_LINES; ++i) {
+		for (int i = 1; i < NumStoreLines; ++i) {
 			// Space out consecutive text lines, unless they are both selectable (never the case currently).
 			if (TextLine[i].hasText() && TextLine[i - 1].hasText() && !(TextLine[i].isSelectable() && TextLine[i - 1].isSelectable())) {
 				TextLine[i].y = TextLine[i - 1].y + LargeTextHeight;
@@ -187,7 +189,7 @@ void CalculateLineHeights()
 			}
 		}
 	} else {
-		for (int i = 1; i < STORE_LINES; ++i) {
+		for (int i = 1; i < NumStoreLines; ++i) {
 			TextLine[i].y = i * SmallLineHeight;
 		}
 	}
@@ -662,7 +664,7 @@ void StartSmithRepair()
 
 void FillManaPlayer()
 {
-	if (!*sgOptions.Gameplay.adriaRefillsMana)
+	if (!*GetOptions().Gameplay.adriaRefillsMana)
 		return;
 
 	Player &myPlayer = *MyPlayer;
@@ -1320,8 +1322,8 @@ void SmithBuyItem(Item &item)
 		item._iIdentified = false;
 	StoreAutoPlace(item, true);
 	int idx = OldScrollPos + ((OldTextLine - PreviousScrollPos) / 4);
-	if (idx == SMITH_ITEMS - 1) {
-		SmithItems[SMITH_ITEMS - 1].clear();
+	if (idx == NumSmithBasicItemsHf - 1) {
+		SmithItems[NumSmithBasicItemsHf - 1].clear();
 	} else {
 		for (; !SmithItems[idx + 1].isEmpty(); idx++) {
 			SmithItems[idx] = std::move(SmithItems[idx + 1]);
@@ -1572,8 +1574,8 @@ void WitchBuyItem(Item &item)
 	StoreAutoPlace(item, true);
 
 	if (idx >= 3) {
-		if (idx == WITCH_ITEMS - 1) {
-			WitchItems[WITCH_ITEMS - 1].clear();
+		if (idx == NumWitchItemsHf - 1) {
+			WitchItems[NumWitchItemsHf - 1].clear();
 		} else {
 			for (; !WitchItems[idx + 1].isEmpty(); idx++) {
 				WitchItems[idx] = std::move(WitchItems[idx + 1]);
@@ -1708,11 +1710,11 @@ void BoyEnter()
 	StartStore(TalkID::Gossip);
 }
 
-void BoyBuyItem(Item &item)
+void BoyBuyItem(Item &item, int itemPrice)
 {
-	TakePlrsMoney(item._iIvalue);
+	TakePlrsMoney(itemPrice);
 	StoreAutoPlace(item, true);
-	BoyItem.clear();
+	item.clear();
 	OldActiveStore = TalkID::Boy;
 	CalcPlrInv(*MyPlayer, true);
 	OldTextLine = 12;
@@ -1836,7 +1838,7 @@ void ConfirmEnter(Item &item)
 			WitchRechargeItem(item._iIvalue);
 			break;
 		case TalkID::BoyBuy:
-			BoyBuyItem(item);
+			BoyBuyItem(BoyItem, item._iIvalue);
 			break;
 		case TalkID::HealerBuy:
 			HealerBuyItem(item);
@@ -2112,7 +2114,7 @@ void AddStoreHoldRepair(Item *itm, int8_t i)
 
 void InitStores()
 {
-	ClearSText(0, STORE_LINES);
+	ClearSText(0, NumStoreLines);
 	ActiveStore = TalkID::None;
 	IsTextFullSize = false;
 	HasScrollbar = false;
@@ -2149,7 +2151,7 @@ void SetupTownStores()
 
 void FreeStoreMem()
 {
-	if (*sgOptions.Gameplay.showItemGraphicsInStores) {
+	if (*GetOptions().Gameplay.showItemGraphicsInStores) {
 		FreeHalfSizeItemSprites();
 	}
 	ActiveStore = TalkID::None;
@@ -2181,7 +2183,7 @@ void PrintSString(const Surface &out, int margin, int line, std::string_view tex
 	constexpr int CursWidth = INV_SLOT_SIZE_PX * 2;
 	constexpr int HalfCursWidth = CursWidth / 2;
 
-	if (*sgOptions.Gameplay.showItemGraphicsInStores && cursId >= 0) {
+	if (*GetOptions().Gameplay.showItemGraphicsInStores && cursId >= 0) {
 		const Size size = GetInvItemSize(static_cast<int>(CURSOR_FIRSTITEM) + cursId);
 		const bool useHalfSize = size.width > INV_SLOT_SIZE_PX || size.height > INV_SLOT_SIZE_PX;
 		const bool useRed = HasAnyOf(flags, UiFlags::ColorRed);
@@ -2199,7 +2201,7 @@ void PrintSString(const Surface &out, int margin, int line, std::string_view tex
 		}
 	}
 
-	if (*sgOptions.Gameplay.showItemGraphicsInStores && cursIndent) {
+	if (*GetOptions().Gameplay.showItemGraphicsInStores && cursIndent) {
 		const Rectangle textRect { { rect.position.x + HalfCursWidth + 8, rect.position.y }, { rect.size.width - HalfCursWidth + 8, rect.size.height } };
 		DrawString(out, text, textRect, { .flags = flags });
 	} else {
@@ -2253,7 +2255,7 @@ void ClearSText(int s, int e)
 
 void StartStore(TalkID s)
 {
-	if (*sgOptions.Gameplay.showItemGraphicsInStores) {
+	if (*GetOptions().Gameplay.showItemGraphicsInStores) {
 		CreateHalfSizeItemSprites();
 	}
 	SpellbookFlag = false;
@@ -2262,7 +2264,7 @@ void StartStore(TalkID s)
 	RenderGold = false;
 	QuestLogIsOpen = false;
 	CloseGoldDrop();
-	ClearSText(0, STORE_LINES);
+	ClearSText(0, NumStoreLines);
 	ReleaseStoreBtn();
 	switch (s) {
 	case TalkID::Smith:
@@ -2355,7 +2357,7 @@ void StartStore(TalkID s)
 	}
 
 	CurrentTextLine = -1;
-	for (int i = 0; i < STORE_LINES; i++) {
+	for (int i = 0; i < NumStoreLines; i++) {
 		if (TextLine[i].isSelectable()) {
 			CurrentTextLine = i;
 			break;
@@ -2400,7 +2402,7 @@ void DrawSText(const Surface &out)
 
 	CalculateLineHeights();
 	const Point uiPosition = GetUIRectangle().position;
-	for (int i = 0; i < STORE_LINES; i++) {
+	for (int i = 0; i < NumStoreLines; i++) {
 		if (TextLine[i].isDivider())
 			DrawSLine(out, uiPosition.y + PaddingTop + TextLine[i].y + TextHeight() / 2);
 		else if (TextLine[i].hasText())
@@ -2508,7 +2510,7 @@ void StoreUp()
 		CurrentTextLine--;
 		while (!TextLine[CurrentTextLine].isSelectable()) {
 			if (CurrentTextLine == 0)
-				CurrentTextLine = STORE_LINES - 1;
+				CurrentTextLine = NumStoreLines - 1;
 			else
 				CurrentTextLine--;
 		}
@@ -2516,13 +2518,13 @@ void StoreUp()
 	}
 
 	if (CurrentTextLine == 0)
-		CurrentTextLine = STORE_LINES - 1;
+		CurrentTextLine = NumStoreLines - 1;
 	else
 		CurrentTextLine--;
 
 	while (!TextLine[CurrentTextLine].isSelectable()) {
 		if (CurrentTextLine == 0)
-			CurrentTextLine = STORE_LINES - 1;
+			CurrentTextLine = NumStoreLines - 1;
 		else
 			CurrentTextLine--;
 	}
@@ -2544,7 +2546,7 @@ void StoreDown()
 
 		CurrentTextLine++;
 		while (!TextLine[CurrentTextLine].isSelectable()) {
-			if (CurrentTextLine == STORE_LINES - 1)
+			if (CurrentTextLine == NumStoreLines - 1)
 				CurrentTextLine = 0;
 			else
 				CurrentTextLine++;
@@ -2552,13 +2554,13 @@ void StoreDown()
 		return;
 	}
 
-	if (CurrentTextLine == STORE_LINES - 1)
+	if (CurrentTextLine == NumStoreLines - 1)
 		CurrentTextLine = 0;
 	else
 		CurrentTextLine++;
 
 	while (!TextLine[CurrentTextLine].isSelectable()) {
-		if (CurrentTextLine == STORE_LINES - 1)
+		if (CurrentTextLine == NumStoreLines - 1)
 			CurrentTextLine = 0;
 		else
 			CurrentTextLine++;
@@ -2701,12 +2703,12 @@ void CheckStoreBtn()
 
 	if (!IsTextFullSize) {
 		if (!windowRect.contains(MousePosition)) {
-			while (ActiveStore != TalkID::None)
+			while (IsPlayerInStore())
 				StoreESC();
 		}
 	} else {
 		if (!windowRectFull.contains(MousePosition)) {
-			while (ActiveStore != TalkID::None)
+			while (IsPlayerInStore())
 				StoreESC();
 		}
 	}
@@ -2743,7 +2745,7 @@ void CheckStoreBtn()
 		int y = relativeY / LineHeight();
 
 		// Large small fonts draw beyond LineHeight. Check if the click was on the overflow text.
-		if (IsSmallFontTall() && y > 0 && y < STORE_LINES
+		if (IsSmallFontTall() && y > 0 && y < NumStoreLines
 		    && TextLine[y - 1].hasText() && !TextLine[y].hasText()
 		    && relativeY < TextLine[y - 1].y + LargeTextHeight) {
 			--y;
@@ -2771,6 +2773,11 @@ void ReleaseStoreBtn()
 {
 	CountdownScrollUp = -1;
 	CountdownScrollDown = -1;
+}
+
+bool IsPlayerInStore()
+{
+	return ActiveStore != TalkID::None;
 }
 
 } // namespace devilution

@@ -3,31 +3,31 @@
  *
  * Load and save options from the diablo.ini file.
  */
+#include "options.h"
 
 #include <algorithm>
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <functional>
+#include <iterator>
 #include <optional>
 #include <span>
 
+#include <SDL_version.h>
 #include <expected.hpp>
 #include <fmt/format.h>
+#include <function_ref.hpp>
 
-#include "control.h"
-#include "controls/controller.h"
-#include "controls/game_controls.h"
-#include "controls/plrctrls.h"
-#include "discord/discord.h"
-#include "engine/demomode.h"
+#include "appfat.h"
+#include "controls/control_mode.hpp"
+#include "controls/controller_buttons.h"
+#include "engine/assets.hpp"
 #include "engine/sound_defs.hpp"
-#include "hwcursor.hpp"
-#include "options.h"
 #include "platform/locale.hpp"
-#include "qol/monhealthbar.h"
-#include "qol/xpbar.h"
+#include "quick_messages.hpp"
 #include "utils/algorithm/container.hpp"
-#include "utils/display.h"
 #include "utils/file_util.h"
 #include "utils/ini.hpp"
 #include "utils/language.h"
@@ -40,12 +40,6 @@
 
 namespace devilution {
 
-#ifndef DEFAULT_WIDTH
-#define DEFAULT_WIDTH 640
-#endif
-#ifndef DEFAULT_HEIGHT
-#define DEFAULT_HEIGHT 480
-#endif
 #ifndef DEFAULT_AUDIO_SAMPLE_RATE
 #define DEFAULT_AUDIO_SAMPLE_RATE 22050
 #endif
@@ -57,6 +51,9 @@ namespace devilution {
 #endif
 #ifndef DEFAULT_AUDIO_RESAMPLING_QUALITY
 #define DEFAULT_AUDIO_RESAMPLING_QUALITY 3
+#endif
+#ifndef DEFAULT_PER_PIXEL_LIGHTING
+#define DEFAULT_PER_PIXEL_LIGHTING true
 #endif
 
 namespace {
@@ -92,8 +89,8 @@ void LoadIni()
 		if (file != nullptr) {
 		uintmax_t size;
 		if (GetFileSize(path.c_str(), &size)) {
-			buffer.resize(size);
-			if (std::fread(buffer.data(), size, 1, file) != 1) {
+			buffer.resize(static_cast<size_t>(size));
+			if (std::fread(buffer.data(), static_cast<size_t>(size), 1, file) != 1) {
 				const char *errorMessage = std::strerror(errno);
 				if (errorMessage == nullptr) errorMessage = "";
 				LogError(LogCategory::System, "std::fread: failed with \"{}\"", errorMessage);
@@ -137,94 +134,13 @@ bool HardwareCursorDefault()
 }
 #endif
 
-void OptionGrabInputChanged()
-{
-#ifdef USE_SDL1
-	SDL_WM_GrabInput(*sgOptions.Gameplay.grabInput ? SDL_GRAB_ON : SDL_GRAB_OFF);
-#else
-	if (ghMainWnd != nullptr)
-		SDL_SetWindowGrab(ghMainWnd, *sgOptions.Gameplay.grabInput ? SDL_TRUE : SDL_FALSE);
-#endif
-}
-
-void OptionExperienceBarChanged()
-{
-	if (!gbRunGame)
-		return;
-	if (*sgOptions.Gameplay.experienceBar)
-		InitXPBar();
-	else
-		FreeXPBar();
-}
-
-void OptionEnemyHealthBarChanged()
-{
-	if (!gbRunGame)
-		return;
-	if (*sgOptions.Gameplay.enemyHealthBar)
-		InitMonsterHealthBar();
-	else
-		FreeMonsterHealthBar();
-}
-
-#if !defined(USE_SDL1) || defined(__3DS__)
-void ResizeWindowAndUpdateResolutionOptions()
-{
-	ResizeWindow();
-#ifndef __3DS__
-	sgOptions.Graphics.resolution.InvalidateList();
-#endif
-}
-#endif
-
-void OptionShowFPSChanged()
-{
-	if (*sgOptions.Graphics.showFPS)
-		EnableFrameCount();
-	else
-		frameflag = false;
-}
-
-void OptionLanguageCodeChanged()
-{
-	UnloadFonts();
-	LanguageInitialize();
-	LoadLanguageArchive();
-}
-
-void OptionGameModeChanged()
-{
-	gbIsHellfire = *sgOptions.GameMode.gameMode == StartUpGameMode::Hellfire;
-	discord_manager::UpdateMenu(true);
-}
-
-void OptionSharewareChanged()
-{
-	gbIsSpawn = *sgOptions.GameMode.shareware;
-}
-
-void OptionMachineLearningChanged()
-{
-	gbIsLearning = *sgOptions.StartUp.machineLearning;
-}
-
-void OptionAudioChanged()
-{
-	effects_cleanup_sfx();
-	music_stop();
-	snd_deinit();
-	snd_init();
-	music_start(TMUSIC_INTRO);
-	if (gbRunGame)
-		sound_init();
-	else
-		ui_sound_init();
-}
-
 } // namespace
 
-/** Game options */
-Options sgOptions;
+Options &GetOptions()
+{
+	static Options options;
+	return options;
+}
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 bool HardwareCursorSupported()
@@ -242,20 +158,21 @@ bool HardwareCursorSupported()
 void LoadOptions()
 {
 	LoadIni();
-	for (OptionCategoryBase *pCategory : sgOptions.GetCategories()) {
+	Options &options = GetOptions();
+	for (OptionCategoryBase *pCategory : options.GetCategories()) {
 		for (OptionEntryBase *pEntry : pCategory->GetEntries()) {
 			pEntry->LoadFromIni(pCategory->GetKey());
 		}
 	}
 
-	ini->getUtf8Buf("Hellfire", "SItem", sgOptions.Hellfire.szItem, sizeof(sgOptions.Hellfire.szItem));
-	ini->getUtf8Buf("Network", "Bind Address", "0.0.0.0", sgOptions.Network.szBindAddress, sizeof(sgOptions.Network.szBindAddress));
-	ini->getUtf8Buf("Network", "Previous Game ID", sgOptions.Network.szPreviousZTGame, sizeof(sgOptions.Network.szPreviousZTGame));
-	ini->getUtf8Buf("Network", "Previous Host", sgOptions.Network.szPreviousHost, sizeof(sgOptions.Network.szPreviousHost));
+	ini->getUtf8Buf("Hellfire", "SItem", options.Hellfire.szItem, sizeof(options.Hellfire.szItem));
+	ini->getUtf8Buf("Network", "Bind Address", "0.0.0.0", options.Network.szBindAddress, sizeof(options.Network.szBindAddress));
+	ini->getUtf8Buf("Network", "Previous Game ID", options.Network.szPreviousZTGame, sizeof(options.Network.szPreviousZTGame));
+	ini->getUtf8Buf("Network", "Previous Host", options.Network.szPreviousHost, sizeof(options.Network.szPreviousHost));
 
-	for (size_t i = 0; i < QUICK_MESSAGE_OPTIONS; i++) {
+	for (size_t i = 0; i < QuickMessages.size(); i++) {
 		std::span<const Ini::Value> values = ini->get("NetMsg", QuickMessages[i].key);
-		std::vector<std::string> &result = sgOptions.Chat.szHotKeyMsgs[i];
+		std::vector<std::string> &result = options.Chat.szHotKeyMsgs[i];
 		result.clear();
 		result.reserve(values.size());
 		for (const Ini::Value &value : values) {
@@ -263,41 +180,36 @@ void LoadOptions()
 		}
 	}
 
-	ini->getUtf8Buf("Controller", "Mapping", sgOptions.Controller.szMapping, sizeof(sgOptions.Controller.szMapping));
-	sgOptions.Controller.fDeadzone = ini->getFloat("Controller", "deadzone", 0.07F);
+	ini->getUtf8Buf("Controller", "Mapping", options.Controller.szMapping, sizeof(options.Controller.szMapping));
+	options.Controller.fDeadzone = ini->getFloat("Controller", "deadzone", 0.07F);
 #ifdef __vita__
-	sgOptions.Controller.bRearTouch = ini->getBool("Controller", "Enable Rear Touchpad", true);
+	options.Controller.bRearTouch = ini->getBool("Controller", "Enable Rear Touchpad", true);
 #endif
-
-	if (demo::IsRunning())
-		demo::OverrideOptions();
 }
 
 void SaveOptions()
 {
-	if (demo::IsRunning())
-		return;
-
-	for (OptionCategoryBase *pCategory : sgOptions.GetCategories()) {
-		for (OptionEntryBase *pEntry : pCategory->GetEntries()) {
+	Options &options = GetOptions();
+	for (OptionCategoryBase *pCategory : options.GetCategories()) {
+		for (const OptionEntryBase *pEntry : pCategory->GetEntries()) {
 			pEntry->SaveToIni(pCategory->GetKey());
 		}
 	}
 
-	ini->set("Hellfire", "SItem", sgOptions.Hellfire.szItem);
+	ini->set("Hellfire", "SItem", options.Hellfire.szItem);
 
-	ini->set("Network", "Bind Address", sgOptions.Network.szBindAddress);
-	ini->set("Network", "Previous Game ID", sgOptions.Network.szPreviousZTGame);
-	ini->set("Network", "Previous Host", sgOptions.Network.szPreviousHost);
+	ini->set("Network", "Bind Address", options.Network.szBindAddress);
+	ini->set("Network", "Previous Game ID", options.Network.szPreviousZTGame);
+	ini->set("Network", "Previous Host", options.Network.szPreviousHost);
 
-	for (size_t i = 0; i < QUICK_MESSAGE_OPTIONS; i++) {
-		ini->set("NetMsg", QuickMessages[i].key, sgOptions.Chat.szHotKeyMsgs[i]);
+	for (size_t i = 0; i < QuickMessages.size(); i++) {
+		ini->set("NetMsg", QuickMessages[i].key, options.Chat.szHotKeyMsgs[i]);
 	}
 
-	ini->set("Controller", "Mapping", sgOptions.Controller.szMapping);
-	ini->set("Controller", "deadzone", sgOptions.Controller.fDeadzone);
+	ini->set("Controller", "Mapping", options.Controller.szMapping);
+	ini->set("Controller", "deadzone", options.Controller.fDeadzone);
 #ifdef __vita__
-	ini->set("Controller", "Enable Rear Touchpad", sgOptions.Controller.bRearTouch);
+	ini->set("Controller", "Enable Rear Touchpad", options.Controller.bRearTouch);
 #endif
 
 	SaveIni();
@@ -315,14 +227,13 @@ OptionEntryFlags OptionEntryBase::GetFlags() const
 {
 	return flags;
 }
-void OptionEntryBase::SetValueChangedCallback(std::function<void()> callback)
+void OptionEntryBase::SetValueChangedCallback(tl::function_ref<void()> callback)
 {
-	this->callback = std::move(callback);
+	callback_ = callback;
 }
 void OptionEntryBase::NotifyValueChanged()
 {
-	if (callback)
-		callback();
+	if (callback_.has_value()) (*callback_)();
 }
 
 void OptionEntryBoolean::LoadFromIni(std::string_view category)
@@ -465,8 +376,6 @@ GameModeOptions::GameModeOptions()
           })
     , shareware("Shareware", OptionEntryFlags::NeedDiabloMpq | OptionEntryFlags::RecreateUI, N_("Restrict to Shareware"), N_("Makes the game compatible with the demo. Enables multiplayer with friends who don't own a full copy of Diablo."), false)
 {
-	gameMode.SetValueChangedCallback(OptionGameModeChanged);
-	shareware.SetValueChangedCallback(OptionSharewareChanged);
 }
 std::vector<OptionEntryBase *> GameModeOptions::GetEntries()
 {
@@ -495,18 +404,12 @@ StartUpOptions::StartUpOptions()
               { StartUpSplash::LogoAndTitleDialog, N_("Logo and Title Screen") },
               { StartUpSplash::TitleDialog, N_("Title Screen") },
               { StartUpSplash::None, N_("None") },
-          }),
-	machineLearning("Machine Learning", OptionEntryFlags::NeedDiabloMpq | OptionEntryFlags::RecreateUI,
-		N_("Set Machine Learning Context"),
-		N_("Enables flag for machine learning context. Simplifies some areas of the game upon game initialization."),
-		false)
+          })
 {
-	machineLearning.SetValueChangedCallback(OptionMachineLearningChanged);
 }
 std::vector<OptionEntryBase *> StartUpOptions::GetEntries()
 {
 	return {
-		&machineLearning,
 		&diabloIntro,
 		&hellfireIntro,
 		&splash,
@@ -551,14 +454,8 @@ AudioOptions::AudioOptions()
     , sampleRate("Sample Rate", OptionEntryFlags::CantChangeInGame, N_("Sample Rate"), N_("Output sample rate (Hz)."), DEFAULT_AUDIO_SAMPLE_RATE, { 22050, 44100, 48000 })
     , channels("Channels", OptionEntryFlags::CantChangeInGame, N_("Channels"), N_("Number of output channels."), DEFAULT_AUDIO_CHANNELS, { 1, 2 })
     , bufferSize("Buffer Size", OptionEntryFlags::CantChangeInGame, N_("Buffer Size"), N_("Buffer size (number of frames per channel)."), DEFAULT_AUDIO_BUFFER_SIZE, { 1024, 2048, 5120 })
-    , resamplingQuality("Resampling Quality", OptionEntryFlags::CantChangeInGame, N_("Resampling Quality"), N_("Quality of the resampler, from 0 (lowest) to 10 (highest)."), DEFAULT_AUDIO_RESAMPLING_QUALITY, { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 })
+    , resamplingQuality("Resampling Quality", OptionEntryFlags::CantChangeInGame, N_("Resampling Quality"), N_("Quality of the resampler, from 0 (lowest) to 5 (highest)."), DEFAULT_AUDIO_RESAMPLING_QUALITY, { 0, 1, 2, 3, 4, 5 })
 {
-	sampleRate.SetValueChangedCallback(OptionAudioChanged);
-	channels.SetValueChangedCallback(OptionAudioChanged);
-	bufferSize.SetValueChangedCallback(OptionAudioChanged);
-	resamplingQuality.SetValueChangedCallback(OptionAudioChanged);
-	resampler.SetValueChangedCallback(OptionAudioChanged);
-	device.SetValueChangedCallback(OptionAudioChanged);
 }
 std::vector<OptionEntryBase *> AudioOptions::GetEntries()
 {
@@ -587,148 +484,41 @@ OptionEntryResolution::OptionEntryResolution()
 }
 void OptionEntryResolution::LoadFromIni(std::string_view category)
 {
-	size = { ini->getInt(category, "Width", DEFAULT_WIDTH), ini->getInt(category, "Height", DEFAULT_HEIGHT) };
+	size_ = { ini->getInt(category, "Width", DEFAULT_WIDTH), ini->getInt(category, "Height", DEFAULT_HEIGHT) };
 }
 void OptionEntryResolution::SaveToIni(std::string_view category) const
 {
-	ini->set(category, "Width", size.width);
-	ini->set(category, "Height", size.height);
-}
-
-void OptionEntryResolution::InvalidateList()
-{
-	resolutions.clear();
-}
-
-void OptionEntryResolution::CheckResolutionsAreInitialized() const
-{
-	if (!resolutions.empty())
-		return;
-
-	std::vector<Size> sizes;
-	float scaleFactor = GetDpiScalingFactor();
-
-	// Add resolutions
-	bool supportsAnyResolution = false;
-#ifdef USE_SDL1
-	auto *modes = SDL_ListModes(nullptr, SDL_FULLSCREEN | SDL_HWPALETTE);
-	// SDL_ListModes returns -1 if any resolution is allowed (for example returned on 3DS)
-	if (modes == (SDL_Rect **)-1) {
-		supportsAnyResolution = true;
-	} else if (modes != nullptr) {
-		for (size_t i = 0; modes[i] != nullptr; i++) {
-			if (modes[i]->w < modes[i]->h) {
-				std::swap(modes[i]->w, modes[i]->h);
-			}
-			sizes.emplace_back(Size {
-			    static_cast<int>(modes[i]->w * scaleFactor),
-			    static_cast<int>(modes[i]->h * scaleFactor) });
-		}
-	}
-#else
-	int displayModeCount = SDL_GetNumDisplayModes(0);
-	for (int i = 0; i < displayModeCount; i++) {
-		SDL_DisplayMode mode;
-		if (SDL_GetDisplayMode(0, i, &mode) != 0) {
-			ErrSdl();
-		}
-		if (mode.w < mode.h) {
-			std::swap(mode.w, mode.h);
-		}
-		sizes.emplace_back(Size {
-		    static_cast<int>(mode.w * scaleFactor),
-		    static_cast<int>(mode.h * scaleFactor) });
-	}
-	supportsAnyResolution = *sgOptions.Graphics.upscale;
-#endif
-
-	if (supportsAnyResolution && sizes.size() == 1) {
-		// Attempt to provide sensible options for 4:3 and the native aspect ratio
-		const int width = sizes[0].width;
-		const int height = sizes[0].height;
-		const int commonHeights[] = { 480, 540, 720, 960, 1080, 1440, 2160 };
-		for (int commonHeight : commonHeights) {
-			if (commonHeight > height)
-				break;
-			sizes.emplace_back(Size { commonHeight * 4 / 3, commonHeight });
-			if (commonHeight * width % height == 0)
-				sizes.emplace_back(Size { commonHeight * width / height, commonHeight });
-		}
-	}
-	// Ensures that the ini specified resolution is present in resolution list even if it doesn't match a monitor resolution (for example if played in window mode)
-	sizes.push_back(this->size);
-	// Ensures that the platform's preferred default resolution is always present
-	sizes.emplace_back(Size { DEFAULT_WIDTH, DEFAULT_HEIGHT });
-	// Ensures that the vanilla Diablo resolution is present on systems that would support it
-	if (supportsAnyResolution)
-		sizes.emplace_back(Size { 640, 480 });
-
-#ifndef USE_SDL1
-	if (*sgOptions.Graphics.fitToScreen) {
-		SDL_DisplayMode mode;
-		if (SDL_GetDesktopDisplayMode(0, &mode) != 0) {
-			ErrSdl();
-		}
-		for (auto &size : sizes) {
-			// Ensure that the ini specified resolution remains present in the resolution list
-			if (size.height == this->size.height)
-				size.width = this->size.width;
-			else
-				size.width = size.height * mode.w / mode.h;
-		}
-	}
-#endif
-
-	// Sort by width then by height
-	c_sort(sizes, [](const Size &x, const Size &y) -> bool {
-		if (x.width == y.width)
-			return x.height > y.height;
-		return x.width > y.width;
-	});
-	// Remove duplicate entries
-	sizes.erase(std::unique(sizes.begin(), sizes.end()), sizes.end());
-
-	for (auto &size : sizes) {
-#ifndef USE_SDL1
-		if (*sgOptions.Graphics.fitToScreen) {
-			resolutions.emplace_back(size, StrCat(size.height, "p"));
-			continue;
-		}
-#endif
-		resolutions.emplace_back(size, StrCat(size.width, "x", size.height));
-	}
+	ini->set(category, "Width", size_.width);
+	ini->set(category, "Height", size_.height);
 }
 
 size_t OptionEntryResolution::GetListSize() const
 {
-	CheckResolutionsAreInitialized();
-	return resolutions.size();
+	return resolutions_.size();
 }
 std::string_view OptionEntryResolution::GetListDescription(size_t index) const
 {
-	CheckResolutionsAreInitialized();
-	return resolutions[index].second;
+	return resolutions_[index].second;
 }
 size_t OptionEntryResolution::GetActiveListIndex() const
 {
-	CheckResolutionsAreInitialized();
-	auto found = c_find_if(resolutions, [this](const auto &x) { return x.first == this->size; });
-	if (found == resolutions.end())
+	auto found = c_find_if(resolutions_, [this](const auto &x) { return x.first == size_; });
+	if (found == resolutions_.end())
 		return 0;
-	return std::distance(resolutions.begin(), found);
+	return std::distance(resolutions_.begin(), found);
 }
 void OptionEntryResolution::SetActiveListIndex(size_t index)
 {
-	size = resolutions[index].first;
+	size_ = resolutions_[index].first;
 	NotifyValueChanged();
 }
 
 OptionEntryResampler::OptionEntryResampler()
     : OptionEntryListBase("Resampler", OptionEntryFlags::CantChangeInGame
-            // When there are exactly 2 options there is no submenu, so we need to recreate the UI
-            // to reflect the change in the "Resampling quality" setting visibility.
-            | (NumResamplers == 2 ? OptionEntryFlags::RecreateUI : OptionEntryFlags::None),
-        N_("Resampler"), N_("Audio resampler"))
+              // When there are exactly 2 options there is no submenu, so we need to recreate the UI
+              // to reflect the change in the "Resampling quality" setting visibility.
+              | (NumResamplers == 2 ? OptionEntryFlags::RecreateUI : OptionEntryFlags::None),
+          N_("Resampler"), N_("Audio resampler"))
 {
 }
 void OptionEntryResampler::LoadFromIni(std::string_view category)
@@ -777,9 +567,9 @@ void OptionEntryResampler::UpdateDependentOptions() const
 {
 #ifdef DEVILUTIONX_RESAMPLER_SPEEX
 	if (resampler_ == Resampler::Speex) {
-		sgOptions.Audio.resamplingQuality.flags &= ~OptionEntryFlags::Invisible;
+		GetOptions().Audio.resamplingQuality.flags &= ~OptionEntryFlags::Invisible;
 	} else {
-		sgOptions.Audio.resamplingQuality.flags |= OptionEntryFlags::Invisible;
+		GetOptions().Audio.resamplingQuality.flags |= OptionEntryFlags::Invisible;
 	}
 #endif
 }
@@ -811,17 +601,8 @@ size_t OptionEntryAudioDevice::GetListSize() const
 
 std::string_view OptionEntryAudioDevice::GetListDescription(size_t index) const
 {
-	constexpr int MaxWidth = 500;
-
 	std::string_view deviceName = GetDeviceName(index);
-	if (deviceName.empty())
-		return "System Default";
-
-	while (GetLineWidth(deviceName, GameFont24, 1) > MaxWidth) {
-		size_t lastSymbolIndex = FindLastUtf8Symbols(deviceName);
-		deviceName = std::string_view(deviceName.data(), lastSymbolIndex);
-	}
-
+	if (deviceName.empty()) deviceName = "System Default";
 	return deviceName;
 }
 
@@ -871,23 +652,31 @@ GraphicsOptions::GraphicsOptions()
               { ScalingQuality::AnisotropicFiltering, N_("Anisotropic") },
           })
     , integerScaling("Integer Scaling", OptionEntryFlags::CantChangeInGame | OptionEntryFlags::RecreateUI, N_("Integer Scaling"), N_("Scales the image using whole number pixel ratio."), false)
-    , vSync("Vertical Sync",
+#endif
+    , frameRateControl("Frame Rate Control",
           OptionEntryFlags::RecreateUI
-#ifdef NXDK
+#if defined(NXDK) || defined(__ANDROID__)
               | OptionEntryFlags::Invisible
 #endif
           ,
-          N_("Vertical Sync"),
-          N_("Forces waiting for Vertical Sync. Prevents tearing effect when drawing a frame. Disabling it can help with mouse lag on some systems."),
-#ifdef NXDK
-          false
+          N_("Frame Rate Control"),
+          N_("Manages frame rate to balance performance, reduce tearing, or save power."),
+#if defined(NXDK) || defined(USE_SDL1)
+          FrameRateControl::CPUSleep
 #else
-          true
+          FrameRateControl::VerticalSync
 #endif
-          )
+          ,
+          {
+              { FrameRateControl::None, N_("None") },
+#ifndef USE_SDL1
+              { FrameRateControl::VerticalSync, N_("Vertical Sync") },
 #endif
-    , gammaCorrection("Gamma Correction", OptionEntryFlags::Invisible, "Gamma Correction", "Gamma correction level.", 100)
+              { FrameRateControl::CPUSleep, N_("Limit FPS") },
+          })
+    , brightness("Brightness Correction", OptionEntryFlags::Invisible, "Brightness Correction", "Brightness correction level.", 0)
     , zoom("Zoom", OptionEntryFlags::None, N_("Zoom"), N_("Zoom on when enabled."), false)
+    , perPixelLighting("Per-pixel Lighting", OptionEntryFlags::None, N_("Per-pixel Lighting"), N_("Subtile lighting for smoother light gradients."), DEFAULT_PER_PIXEL_LIGHTING)
     , colorCycling("Color Cycling", OptionEntryFlags::None, N_("Color Cycling"), N_("Color cycling effect used for water, lava, and acid animation."), true)
     , alternateNestArt("Alternate nest art", OptionEntryFlags::OnlyHellfire | OptionEntryFlags::CantChangeInGame, N_("Alternate nest art"), N_("The game will use an alternative palette for Hellfire’s nest tileset."), false)
 #if SDL_VERSION_ATLEAST(2, 0, 0)
@@ -895,21 +684,9 @@ GraphicsOptions::GraphicsOptions()
     , hardwareCursorForItems("Hardware Cursor For Items", OptionEntryFlags::CantChangeInGame | (HardwareCursorSupported() ? OptionEntryFlags::None : OptionEntryFlags::Invisible), N_("Hardware Cursor For Items"), N_("Use a hardware cursor for items."), false)
     , hardwareCursorMaxSize("Hardware Cursor Maximum Size", OptionEntryFlags::CantChangeInGame | OptionEntryFlags::RecreateUI | (HardwareCursorSupported() ? OptionEntryFlags::None : OptionEntryFlags::Invisible), N_("Hardware Cursor Maximum Size"), N_("Maximum width / height for the hardware cursor. Larger cursors fall back to software."), 128, { 0, 64, 128, 256, 512 })
 #endif
-    , limitFPS("FPS Limiter", OptionEntryFlags::None, N_("FPS Limiter"), N_("FPS is limited to avoid high CPU load. Limit considers refresh rate."), true)
     , adjustControlsForTablets("Adjust controls UI for tablets", OptionEntryFlags::CantChangeInGame, N_("Adjust controls UI for tablets"), N_("Adjusts controls UI for tablets."), false)
     , showFPS("Show FPS", OptionEntryFlags::None, N_("Show FPS"), N_("Displays the FPS in the upper left corner of the screen."), false)
 {
-	resolution.SetValueChangedCallback(ResizeWindow);
-	fullscreen.SetValueChangedCallback(SetFullscreenMode);
-#if !defined(USE_SDL1) || defined(__3DS__)
-	fitToScreen.SetValueChangedCallback(ResizeWindowAndUpdateResolutionOptions);
-#endif
-#ifndef USE_SDL1
-	scaleQuality.SetValueChangedCallback(ReinitializeTexture);
-	integerScaling.SetValueChangedCallback(ReinitializeIntegerScale);
-	vSync.SetValueChangedCallback(ReinitializeRenderer);
-#endif
-	showFPS.SetValueChangedCallback(OptionShowFPSChanged);
 }
 std::vector<OptionEntryBase *> GraphicsOptions::GetEntries()
 {
@@ -926,13 +703,13 @@ std::vector<OptionEntryBase *> GraphicsOptions::GetEntries()
 		&upscale,
 		&scaleQuality,
 		&integerScaling,
-		&vSync,
 #endif
-		&gammaCorrection,
+		&frameRateControl,
+		&brightness,
 		&zoom,
-		&limitFPS,
 		&adjustControlsForTablets,
 		&showFPS,
+		&perPixelLighting,
 		&colorCycling,
 		&alternateNestArt,
 #if SDL_VERSION_ATLEAST(2, 0, 0)
@@ -991,10 +768,8 @@ GameplayOptions::GameplayOptions()
           })
     , skipLoadingScreenThresholdMs("Skip loading screen threshold, ms", OptionEntryFlags::Invisible, "", "", 0)
 {
-	grabInput.SetValueChangedCallback(OptionGrabInputChanged);
-	experienceBar.SetValueChangedCallback(OptionExperienceBarChanged);
-	enemyHealthBar.SetValueChangedCallback(OptionEnemyHealthBarChanged);
 }
+
 std::vector<OptionEntryBase *> GameplayOptions::GetEntries()
 {
 	return {
@@ -1191,7 +966,6 @@ void OptionEntryLanguageCode::SetActiveListIndex(size_t index)
 LanguageOptions::LanguageOptions()
     : OptionCategoryBase("Language", N_("Language"), N_("Language Settings"))
 {
-	code.SetValueChangedCallback(OptionLanguageCodeChanged);
 }
 std::vector<OptionEntryBase *> LanguageOptions::GetEntries()
 {
@@ -1282,9 +1056,9 @@ std::vector<OptionEntryBase *> KeymapperOptions::GetEntries()
 
 KeymapperOptions::Action::Action(std::string_view key, const char *name, const char *description, uint32_t defaultKey, std::function<void()> actionPressed, std::function<void()> actionReleased, std::function<bool()> enable, unsigned index)
     : OptionEntryBase(key, OptionEntryFlags::None, name, description)
-    , defaultKey(defaultKey)
     , actionPressed(std::move(actionPressed))
     , actionReleased(std::move(actionReleased))
+    , defaultKey(defaultKey)
     , enable(std::move(enable))
     , dynamicIndex(index)
 {
@@ -1316,8 +1090,8 @@ void KeymapperOptions::Action::LoadFromIni(std::string_view category)
 		return;
 	}
 
-	auto keyIt = sgOptions.Keymapper.keyNameToKeyID.find(iniValue);
-	if (keyIt == sgOptions.Keymapper.keyNameToKeyID.end()) {
+	auto keyIt = GetOptions().Keymapper.keyNameToKeyID.find(iniValue);
+	if (keyIt == GetOptions().Keymapper.keyNameToKeyID.end()) {
 		// Use the default key if the key is unknown.
 		Log("Keymapper: unknown key '{}'", iniValue);
 		SetValue(defaultKey);
@@ -1335,8 +1109,8 @@ void KeymapperOptions::Action::SaveToIni(std::string_view category) const
 		ini->set(category, key, std::string {});
 		return;
 	}
-	auto keyNameIt = sgOptions.Keymapper.keyIDToKeyName.find(boundKey);
-	if (keyNameIt == sgOptions.Keymapper.keyIDToKeyName.end()) {
+	auto keyNameIt = GetOptions().Keymapper.keyIDToKeyName.find(boundKey);
+	if (keyNameIt == GetOptions().Keymapper.keyIDToKeyName.end()) {
 		LogVerbose("Keymapper: no name found for key {} bound to {}", boundKey, key);
 		return;
 	}
@@ -1347,8 +1121,8 @@ std::string_view KeymapperOptions::Action::GetValueDescription() const
 {
 	if (boundKey == SDLK_UNKNOWN)
 		return "";
-	auto keyNameIt = sgOptions.Keymapper.keyIDToKeyName.find(boundKey);
-	if (keyNameIt == sgOptions.Keymapper.keyIDToKeyName.end()) {
+	auto keyNameIt = GetOptions().Keymapper.keyIDToKeyName.find(boundKey);
+	if (keyNameIt == GetOptions().Keymapper.keyIDToKeyName.end()) {
 		return "";
 	}
 	return keyNameIt->second;
@@ -1356,27 +1130,27 @@ std::string_view KeymapperOptions::Action::GetValueDescription() const
 
 bool KeymapperOptions::Action::SetValue(int value)
 {
-	if (value != SDLK_UNKNOWN && sgOptions.Keymapper.keyIDToKeyName.find(value) == sgOptions.Keymapper.keyIDToKeyName.end()) {
+	if (value != SDLK_UNKNOWN && GetOptions().Keymapper.keyIDToKeyName.find(value) == GetOptions().Keymapper.keyIDToKeyName.end()) {
 		// Ignore invalid key values
 		return false;
 	}
 
 	// Remove old key
 	if (boundKey != SDLK_UNKNOWN) {
-		sgOptions.Keymapper.keyIDToAction.erase(boundKey);
+		GetOptions().Keymapper.keyIDToAction.erase(boundKey);
 		boundKey = SDLK_UNKNOWN;
 	}
 
 	// Add new key
 	if (value != SDLK_UNKNOWN) {
-		auto it = sgOptions.Keymapper.keyIDToAction.find(value);
-		if (it != sgOptions.Keymapper.keyIDToAction.end()) {
+		auto it = GetOptions().Keymapper.keyIDToAction.find(value);
+		if (it != GetOptions().Keymapper.keyIDToAction.end()) {
 			// Warn about overwriting keys.
 			Log("Keymapper: key '{}' is already bound to action '{}', overwriting", value, it->second.get().name);
 			it->second.get().boundKey = SDLK_UNKNOWN;
 		}
 
-		sgOptions.Keymapper.keyIDToAction.insert_or_assign(value, *this);
+		GetOptions().Keymapper.keyIDToAction.insert_or_assign(value, *this);
 		boundKey = value;
 	}
 
@@ -1393,53 +1167,11 @@ void KeymapperOptions::CommitActions()
 	actions.reverse();
 }
 
-void KeymapperOptions::KeyPressed(uint32_t key) const
+const KeymapperOptions::Action *KeymapperOptions::findAction(uint32_t key) const
 {
-	if (key >= SDLK_a && key <= SDLK_z) {
-		key -= 'a' - 'A';
-	}
-
 	auto it = keyIDToAction.find(key);
-	if (it == keyIDToAction.end())
-		return; // Ignore unmapped keys.
-
-	const Action &action = it->second.get();
-
-	// Check that the action can be triggered and that the chat textbox is not
-	// open.
-	if (!action.actionPressed || (action.enable && !action.enable()) || ChatFlag)
-		return;
-
-	action.actionPressed();
-}
-
-void KeymapperOptions::KeyReleased(SDL_Keycode key) const
-{
-	if (key >= SDLK_a && key <= SDLK_z) {
-		key = static_cast<SDL_Keycode>(static_cast<Sint32>(key) - ('a' - 'A'));
-	}
-	auto it = keyIDToAction.find(key);
-	if (it == keyIDToAction.end())
-		return; // Ignore unmapped keys.
-
-	const Action &action = it->second.get();
-
-	// Check that the action can be triggered and that the chat or gold textbox is not
-	// open. If either of those textboxes are open, only return if the key can be used for entry into the box
-	if (!action.actionReleased || (action.enable && !action.enable()) || ((ChatFlag && IsTextEntryKey(key)) || (DropGoldFlag && IsNumberEntryKey(key))))
-		return;
-
-	action.actionReleased();
-}
-
-bool KeymapperOptions::IsTextEntryKey(SDL_Keycode vkey) const
-{
-	return IsAnyOf(vkey, SDLK_ESCAPE, SDLK_RETURN, SDLK_KP_ENTER, SDLK_BACKSPACE, SDLK_DOWN, SDLK_UP) || (vkey >= SDLK_SPACE && vkey <= SDLK_z);
-}
-
-bool KeymapperOptions::IsNumberEntryKey(SDL_Keycode vkey) const
-{
-	return ((vkey >= SDLK_0 && vkey <= SDLK_9) || vkey == SDLK_BACKSPACE);
+	if (it == keyIDToAction.end()) return nullptr;
+	return &it->second.get();
 }
 
 std::string_view KeymapperOptions::KeyNameForAction(std::string_view actionName) const
@@ -1502,9 +1234,9 @@ std::vector<OptionEntryBase *> PadmapperOptions::GetEntries()
 
 PadmapperOptions::Action::Action(std::string_view key, const char *name, const char *description, ControllerButtonCombo defaultInput, std::function<void()> actionPressed, std::function<void()> actionReleased, std::function<bool()> enable, unsigned index)
     : OptionEntryBase(key, OptionEntryFlags::None, name, description)
-    , defaultInput(defaultInput)
     , actionPressed(std::move(actionPressed))
     , actionReleased(std::move(actionReleased))
+    , defaultInput(defaultInput)
     , enable(std::move(enable))
     , dynamicIndex(index)
 {
@@ -1547,8 +1279,8 @@ void PadmapperOptions::Action::LoadFromIni(std::string_view category)
 
 	ControllerButtonCombo input {};
 	if (!modName.empty()) {
-		auto modifierIt = sgOptions.Padmapper.buttonNameToButton.find(modName);
-		if (modifierIt == sgOptions.Padmapper.buttonNameToButton.end()) {
+		auto modifierIt = GetOptions().Padmapper.buttonNameToButton.find(modName);
+		if (modifierIt == GetOptions().Padmapper.buttonNameToButton.end()) {
 			// Use the default button combo if the modifier name is unknown.
 			LogWarn("Padmapper: unknown button '{}'", modName);
 			SetValue(defaultInput);
@@ -1557,8 +1289,8 @@ void PadmapperOptions::Action::LoadFromIni(std::string_view category)
 		input.modifier = modifierIt->second;
 	}
 
-	auto buttonIt = sgOptions.Padmapper.buttonNameToButton.find(buttonName);
-	if (buttonIt == sgOptions.Padmapper.buttonNameToButton.end()) {
+	auto buttonIt = GetOptions().Padmapper.buttonNameToButton.find(buttonName);
+	if (buttonIt == GetOptions().Padmapper.buttonNameToButton.end()) {
 		// Use the default button combo if the button name is unknown.
 		LogWarn("Padmapper: unknown button '{}'", buttonName);
 		SetValue(defaultInput);
@@ -1577,13 +1309,13 @@ void PadmapperOptions::Action::SaveToIni(std::string_view category) const
 		ini->set(category, key, "");
 		return;
 	}
-	std::string inputName = sgOptions.Padmapper.buttonToButtonName[static_cast<size_t>(boundInput.button)];
+	std::string inputName = GetOptions().Padmapper.buttonToButtonName[static_cast<size_t>(boundInput.button)];
 	if (inputName.empty()) {
 		LogVerbose("Padmapper: no name found for button {} bound to {}", static_cast<size_t>(boundInput.button), key);
 		return;
 	}
 	if (boundInput.modifier != ControllerButton_NONE) {
-		const std::string &modifierName = sgOptions.Padmapper.buttonToButtonName[static_cast<size_t>(boundInput.modifier)];
+		const std::string &modifierName = GetOptions().Padmapper.buttonToButtonName[static_cast<size_t>(boundInput.modifier)];
 		if (modifierName.empty()) {
 			LogVerbose("Padmapper: no name found for modifier button {} bound to {}", static_cast<size_t>(boundInput.button), key);
 			return;
@@ -1601,13 +1333,13 @@ void PadmapperOptions::Action::UpdateValueDescription() const
 		boundInputShortDescription = "";
 		return;
 	}
-	std::string_view buttonName = ToString(boundInput.button);
+	std::string_view buttonName = ToString(GamepadType, boundInput.button);
 	if (boundInput.modifier == ControllerButton_NONE) {
 		boundInputDescription = std::string(buttonName);
 		boundInputShortDescription = std::string(Shorten(buttonName));
 		return;
 	}
-	std::string_view modifierName = ToString(boundInput.modifier);
+	std::string_view modifierName = ToString(GamepadType, boundInput.modifier);
 	boundInputDescription = StrCat(modifierName, "+", buttonName);
 	boundInputShortDescription = StrCat(Shorten(modifierName), "+", Shorten(buttonName));
 }
@@ -1663,69 +1395,6 @@ void PadmapperOptions::CommitActions()
 	committed = true;
 }
 
-void PadmapperOptions::ButtonPressed(ControllerButton button)
-{
-	const Action *action = FindAction(button);
-	if (action == nullptr)
-		return;
-	if (IsMovementHandlerActive() && CanDeferToMovementHandler(*action))
-		return;
-	if (action->actionPressed)
-		action->actionPressed();
-	SuppressedButton = action->boundInput.modifier;
-	buttonToReleaseAction[static_cast<size_t>(button)] = action;
-}
-
-void PadmapperOptions::ButtonReleased(ControllerButton button, bool invokeAction)
-{
-	if (invokeAction) {
-		const Action *action = buttonToReleaseAction[static_cast<size_t>(button)];
-		if (action == nullptr)
-			return; // Ignore unmapped buttons.
-
-		// Check that the action can be triggered.
-		if (action->actionReleased && (!action->enable || action->enable()))
-			action->actionReleased();
-	}
-	buttonToReleaseAction[static_cast<size_t>(button)] = nullptr;
-}
-
-void PadmapperOptions::ReleaseAllActiveButtons()
-{
-	for (auto *action : buttonToReleaseAction) {
-		if (action == nullptr)
-			continue;
-		ControllerButton button = action->boundInput.button;
-		ButtonReleased(button, true);
-	}
-}
-
-bool PadmapperOptions::IsActive(std::string_view actionName) const
-{
-	for (const Action &action : actions) {
-		if (action.key != actionName)
-			continue;
-		const Action *releaseAction = buttonToReleaseAction[static_cast<size_t>(action.boundInput.button)];
-		return releaseAction != nullptr && releaseAction->key == actionName;
-	}
-	return false;
-}
-
-std::string_view PadmapperOptions::ActionNameTriggeredByButtonEvent(ControllerButtonEvent ctrlEvent) const
-{
-	if (!gbRunGame)
-		return "";
-
-	if (!ctrlEvent.up) {
-		const Action *pressAction = FindAction(ctrlEvent.button);
-		return pressAction != nullptr ? pressAction->key : "";
-	}
-	const Action *releaseAction = buttonToReleaseAction[static_cast<size_t>(ctrlEvent.button)];
-	if (releaseAction == nullptr)
-		return "";
-	return releaseAction->key;
-}
-
 std::string_view PadmapperOptions::InputNameForAction(std::string_view actionName, bool useShortName) const
 {
 	for (const Action &action : actions) {
@@ -1746,7 +1415,7 @@ ControllerButtonCombo PadmapperOptions::ButtonComboForAction(std::string_view ac
 	return ControllerButton_NONE;
 }
 
-const PadmapperOptions::Action *PadmapperOptions::FindAction(ControllerButton button) const
+const PadmapperOptions::Action *PadmapperOptions::findAction(ControllerButton button, tl::function_ref<bool(ControllerButton)> isModifierPressed) const
 {
 	// To give preference to button combinations,
 	// first pass ignores mappings where no modifier is bound
@@ -1756,7 +1425,7 @@ const PadmapperOptions::Action *PadmapperOptions::FindAction(ControllerButton bu
 			continue;
 		if (button != combo.button)
 			continue;
-		if (!IsControllerButtonPressed(combo.modifier))
+		if (!isModifierPressed(combo.modifier))
 			continue;
 		if (action.enable && !action.enable())
 			continue;
@@ -1777,26 +1446,65 @@ const PadmapperOptions::Action *PadmapperOptions::FindAction(ControllerButton bu
 	return nullptr;
 }
 
-bool PadmapperOptions::CanDeferToMovementHandler(const Action &action) const
+ModOptions::ModOptions()
+    : OptionCategoryBase("Mods", N_("Mods"), N_("Mod Settings"))
 {
-	if (action.boundInput.modifier != ControllerButton_NONE)
-		return false;
+}
 
-	if (SpellSelectFlag) {
-		const std::string_view prefix { "QuickSpell" };
-		const std::string_view key { action.key };
-		if (key.size() >= prefix.size()) {
-			const std::string_view truncated { key.data(), prefix.size() };
-			if (truncated == prefix)
-				return false;
-		}
+std::vector<std::string_view> ModOptions::GetActiveModList()
+{
+	std::vector<std::string_view> modList;
+	for (auto &modEntry : GetModEntries()) {
+		if (*modEntry.enabled)
+			modList.emplace_back(modEntry.name);
+	}
+	return modList;
+}
+
+std::vector<std::string_view> ModOptions::GetModList()
+{
+	std::vector<std::string_view> modList;
+	for (auto &modEntry : GetModEntries()) {
+		modList.emplace_back(modEntry.name);
+	}
+	return modList;
+}
+
+std::vector<OptionEntryBase *> ModOptions::GetEntries()
+{
+	std::vector<OptionEntryBase *> optionEntries;
+	for (auto &modEntry : GetModEntries()) {
+		optionEntries.emplace_back(&modEntry.enabled);
+	}
+	return optionEntries;
+}
+
+std::forward_list<ModOptions::ModEntry> &ModOptions::GetModEntries()
+{
+	if (modEntries)
+		return *modEntries;
+
+	std::vector<std::string> modNames = ini->getKeys(key);
+
+	// Add mods available by default:
+	for (const std::string_view modName : { "clock" }) {
+		if (c_find(modNames, modName) != modNames.end()) continue;
+		ini->set(key, modName, false);
+		modNames.emplace_back(modName);
 	}
 
-	return IsAnyOf(action.boundInput.button,
-	    ControllerButton_BUTTON_DPAD_UP,
-	    ControllerButton_BUTTON_DPAD_DOWN,
-	    ControllerButton_BUTTON_DPAD_LEFT,
-	    ControllerButton_BUTTON_DPAD_RIGHT);
+	std::forward_list<ModOptions::ModEntry> &newModEntries = modEntries.emplace();
+	for (auto &modName : modNames) {
+		newModEntries.emplace_front(modName);
+	}
+	newModEntries.reverse();
+	return newModEntries;
+}
+
+ModOptions::ModEntry::ModEntry(std::string_view name)
+    : name(name)
+    , enabled(this->name, OptionEntryFlags::None, this->name.c_str(), "", false)
+{
 }
 
 namespace {

@@ -7,6 +7,7 @@
 
 #include <SDL.h>
 
+#include "controls/control_mode.hpp"
 #include "controls/game_controls.h"
 #include "controls/plrctrls.h"
 #include "cursor.h"
@@ -66,7 +67,7 @@ void RepeatMouseAction()
 	if (sgbMouseDown == CLICK_NONE && ControllerActionHeld == GameActionType_NONE)
 		return;
 
-	if (ActiveStore != TalkID::None)
+	if (IsPlayerInStore())
 		return;
 
 	if (LastMouseButtonAction == MouseActionType::None)

@@ -6,6 +6,7 @@
 #include "loadsave.h"
 
 #include <climits>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <numeric>
@@ -22,11 +23,11 @@
 #include "cursor.h"
 #include "dead.h"
 #include "doom.h"
-#include "engine.h"
 #include "engine/point.hpp"
 #include "engine/random.hpp"
-#include "init.h"
+#include "game_mode.hpp"
 #include "inv.h"
+#include "levels/dun_tile.hpp"
 #include "lighting.h"
 #include "menu.h"
 #include "missiles.h"
@@ -37,7 +38,8 @@
 #include "qol/stash.h"
 #include "stores.h"
 #include "utils/algorithm/container.hpp"
-#include "utils/endian.hpp"
+#include "utils/endian_read.hpp"
+#include "utils/is_of.hpp"
 #include "utils/language.h"
 #include "utils/status_macros.hpp"
 
@@ -49,6 +51,7 @@ uint8_t giNumberOfLevels;
 namespace {
 
 constexpr size_t MaxMissilesForSaveGame = 125;
+constexpr size_t PlayerWalkPathSizeForSaveGame = 25;
 
 uint8_t giNumberQuests;
 uint8_t giNumberOfSmithPremiumItems;
@@ -81,6 +84,14 @@ T SwapBE(T in)
 	default:
 		return in;
 	}
+}
+
+void TerminateUtf8(char *str, size_t maxLength)
+{
+	std::string_view inStr { str, maxLength };
+	std::string_view truncStr = TruncateUtf8(inStr, maxLength - 1);
+	size_t utf8Length = truncStr.size();
+	str[utf8Length] = '\0';
 }
 
 class LoadHelper {
@@ -265,8 +276,10 @@ void LoadItemData(LoadHelper &file, Item &item)
 	item._iPostDraw = file.NextBool32();
 	item._iIdentified = file.NextBool32();
 	item._iMagical = static_cast<item_quality>(file.NextLE<int8_t>());
-	file.NextBytes(item._iName, 64);
-	file.NextBytes(item._iIName, 64);
+	file.NextBytes(item._iName, ItemNameLength);
+	TerminateUtf8(item._iName, ItemNameLength);
+	file.NextBytes(item._iIName, ItemNameLength);
+	TerminateUtf8(item._iIName, ItemNameLength);
 	item._iLoc = static_cast<item_equip_type>(file.NextLE<int8_t>());
 	item._iClass = static_cast<item_class>(file.NextLE<uint8_t>());
 	file.Skip(1); // Alignment
@@ -344,9 +357,11 @@ void LoadPlayer(LoadHelper &file, Player &player)
 {
 	player._pmode = static_cast<PLR_MODE>(file.NextLE<int32_t>());
 
-	for (int8_t &step : player.walkpath) {
-		step = file.NextLE<int8_t>();
+	for (size_t i = 0; i < PlayerWalkPathSizeForSaveGame; ++i) {
+		player.walkpath[i] = file.NextLE<int8_t>();
 	}
+	player.walkpath[PlayerWalkPathSizeForSaveGame] = WALK_NONE;
+
 	player.plractive = file.NextBool8();
 	file.Skip(2); // Alignment
 	player.destAction = static_cast<action_id>(file.NextLE<int32_t>());
@@ -434,6 +449,7 @@ void LoadPlayer(LoadHelper &file, Player &player)
 	player._pLvlChanging = file.NextBool8();
 
 	file.NextBytes(player._pName, PlayerNameLength);
+	TerminateUtf8(player._pName, PlayerNameLength);
 	player._pClass = static_cast<HeroClass>(file.NextLE<int8_t>());
 	file.Skip(3); // Alignment
 	player._pStrength = file.NextLE<int32_t>();
@@ -993,7 +1009,7 @@ void LoadMatchingItems(LoadHelper &file, const Player &player, const int n, Item
 			// game's item generation logic before attempting to use it for validation
 			if ((heroItem.dwBuff & CF_HELLFIRE) != (unpackedItem.dwBuff & CF_HELLFIRE)) {
 				unpackedItem = {};
-				RecreateItem(player, unpackedItem, heroItem.IDidx, heroItem._iCreateInfo, heroItem._iSeed, heroItem._ivalue, (heroItem.dwBuff & CF_HELLFIRE) != 0);
+				RecreateItem(player, unpackedItem, heroItem.IDidx, heroItem._iCreateInfo, heroItem._iSeed, heroItem._ivalue, heroItem.dwBuff);
 				unpackedItem._iIdentified = heroItem._iIdentified;
 				unpackedItem._iMaxDur = heroItem._iMaxDur;
 				unpackedItem._iDurability = ClampDurability(unpackedItem, heroItem._iDurability);
@@ -1076,15 +1092,15 @@ void SaveItem(SaveHelper &file, const Item &item)
 	// write _iAnimWidth for vanilla compatibility
 	file.WriteLE<int32_t>(ItemAnimWidth);
 	// write _iAnimWidth2 for vanilla compatibility
-	file.WriteLE<int32_t>(CalculateWidth2(ItemAnimWidth));
+	file.WriteLE<int32_t>(CalculateSpriteTileCenterX(ItemAnimWidth));
 	file.Skip<uint32_t>(); // _delFlag, unused since 1.02
 	file.WriteLE<uint8_t>(static_cast<uint8_t>(item.selectionRegion));
 	file.Skip(3); // Alignment
 	file.WriteLE<uint32_t>(item._iPostDraw ? 1 : 0);
 	file.WriteLE<uint32_t>(item._iIdentified ? 1 : 0);
 	file.WriteLE<int8_t>(item._iMagical);
-	file.WriteBytes(item._iName, 64);
-	file.WriteBytes(item._iIName, 64);
+	file.WriteBytes(item._iName, ItemNameLength);
+	file.WriteBytes(item._iIName, ItemNameLength);
 	file.WriteLE<int8_t>(item._iLoc);
 	file.WriteLE<uint8_t>(item._iClass);
 	file.Skip(1); // Alignment
@@ -1146,8 +1162,9 @@ void SaveItem(SaveHelper &file, const Item &item)
 void SavePlayer(SaveHelper &file, const Player &player)
 {
 	file.WriteLE<int32_t>(player._pmode);
-	for (int8_t step : player.walkpath)
-		file.WriteLE<int8_t>(step);
+	for (size_t i = 0; i < PlayerWalkPathSizeForSaveGame; ++i) {
+		file.WriteLE<int8_t>(player.walkpath[i]);
+	}
 	file.WriteLE<uint8_t>(player.plractive ? 1 : 0);
 	file.Skip(2); // Alignment
 	file.WriteLE<int32_t>(player.destAction);
@@ -1194,7 +1211,7 @@ void SavePlayer(SaveHelper &file, const Player &player)
 	const int animWidth = player.getSpriteWidth();
 	file.WriteLE<int32_t>(animWidth);
 	// write _pAnimWidth2 for vanilla compatibility
-	file.WriteLE<int32_t>(CalculateWidth2(animWidth));
+	file.WriteLE<int32_t>(CalculateSpriteTileCenterX(animWidth));
 	file.Skip<uint32_t>(); // Skip _peflag
 	file.WriteLE<int32_t>(player.lightId);
 	file.WriteLE<int32_t>(1); // _pvid
@@ -1606,7 +1623,7 @@ void SaveObject(SaveHelper &file, const Object &object)
 	file.WriteLE<uint32_t>(object._oAnimLen);
 	file.WriteLE<uint32_t>(object._oAnimFrame);
 	file.WriteLE<int32_t>(object._oAnimWidth);
-	file.WriteLE<int32_t>(CalculateWidth2(static_cast<int>(object._oAnimWidth))); // Write _oAnimWidth2 for vanilla compatibility
+	file.WriteLE<int32_t>(CalculateSpriteTileCenterX(static_cast<int>(object._oAnimWidth))); // Write _oAnimWidth2 for vanilla compatibility
 	file.WriteLE<uint32_t>(object._oDelFlag ? 1 : 0);
 	file.WriteLE<int8_t>(object._oBreak);
 	file.Skip(3); // Alignment

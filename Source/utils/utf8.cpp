@@ -3,28 +3,21 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <string_view>
 
-#include <hoehrmann_utf8.h>
+extern "C" {
+#include <SheenBidi.h>
+}
 
 namespace devilution {
 
 char32_t DecodeFirstUtf8CodePoint(std::string_view input, std::size_t *len)
 {
-	uint32_t codepoint = 0;
-	uint8_t state = UTF8_ACCEPT;
-	for (std::size_t i = 0; i < input.size(); ++i) {
-		state = utf8_decode_step(state, static_cast<uint8_t>(input[i]), &codepoint);
-		if (state == UTF8_ACCEPT) {
-			*len = i + 1;
-			return codepoint;
-		}
-		if (state == UTF8_REJECT) {
-			*len = i + 1;
-			return Utf8DecodeError;
-		}
-	}
-	*len = input.size();
-	return Utf8DecodeError;
+	SBUInteger index = 0;
+	SBCodepoint result = SBCodepointDecodeNextFromUTF8(
+	    reinterpret_cast<const SBUInt8 *>(input.data()), static_cast<SBUInteger>(input.size()), &index);
+	*len = index;
+	return result;
 }
 
 std::string_view TruncateUtf8(std::string_view str, std::size_t len)

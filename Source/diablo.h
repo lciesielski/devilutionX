@@ -7,13 +7,18 @@
 
 #include <cstdint>
 
+#include <SDL.h>
+
+#ifdef USE_SDL1
+#include "utils/sdl2_to_1_2_backports.h"
+#endif
+
 #ifdef _DEBUG
 #include "monstdat.h"
 #endif
-#include "init.h"
 #include "levels/gendung.h"
 #include "utils/attributes.h"
-#include "utils/endian.hpp"
+#include "utils/endian_read.hpp"
 
 namespace devilution {
 
@@ -70,12 +75,6 @@ extern bool cineflag;
 /* These are defined in fonts.h */
 extern void FontsCleanup();
 extern DVL_API_FOR_TEST int PauseMode;
-extern bool gbBard;
-extern bool gbBarbarian;
-/**
- * @brief Don't load UI or show Messageboxes or other user-interaction. Needed for UnitTests.
- */
-extern DVL_API_FOR_TEST bool HeadlessMode;
 extern clicktype sgbMouseDown;
 extern uint16_t gnTickDelay;
 extern char gszProductName[64];
@@ -111,15 +110,6 @@ void diablo_color_cyc_logic();
 extern bool DebugDisableNetworkTimeout;
 #endif
 
-struct QuickMessage {
-	/** Config variable names for quick message */
-	const char *const key;
-	/** Default quick message */
-	const char *const message;
-};
-
-constexpr size_t QUICK_MESSAGE_OPTIONS = 10;
-extern QuickMessage QuickMessages[QUICK_MESSAGE_OPTIONS];
 /**
  * @brief Specifies what game logic step is currently executed
  */

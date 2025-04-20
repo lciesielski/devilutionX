@@ -15,6 +15,7 @@
 #include "engine/load_clx.hpp"
 #include "engine/point.hpp"
 #include "engine/render/clx_render.hpp"
+#include "engine/render/primitive_render.hpp"
 #include "options.h"
 #include "playerdat.hpp"
 #include "utils/format_int.hpp"
@@ -49,11 +50,23 @@ void DrawEndCap(const Surface &out, Point point, int idx, const ColorGradient &g
 	out.SetPixel({ point.x, point.y + 3 }, gradient[idx / 2]);
 }
 
+void OptionExperienceBarChanged()
+{
+	if (!gbRunGame)
+		return;
+	if (*GetOptions().Gameplay.experienceBar)
+		InitXPBar();
+	else
+		FreeXPBar();
+}
+
+const auto OptionChangeHandler = (GetOptions().Gameplay.experienceBar.SetValueChangedCallback(OptionExperienceBarChanged), true);
+
 } // namespace
 
 void InitXPBar()
 {
-	if (*sgOptions.Gameplay.experienceBar) {
+	if (*GetOptions().Gameplay.experienceBar) {
 		xpbarArt = LoadClx("data\\xpbar.clx");
 	}
 }
@@ -65,7 +78,7 @@ void FreeXPBar()
 
 void DrawXPBar(const Surface &out)
 {
-	if (!*sgOptions.Gameplay.experienceBar || ChatFlag)
+	if (!*GetOptions().Gameplay.experienceBar || ChatFlag)
 		return;
 
 	const Player &player = *MyPlayer;
@@ -108,7 +121,7 @@ void DrawXPBar(const Surface &out)
 
 bool CheckXPBarInfo()
 {
-	if (!*sgOptions.Gameplay.experienceBar)
+	if (!*GetOptions().Gameplay.experienceBar)
 		return false;
 	const Rectangle &mainPanel = GetMainPanel();
 

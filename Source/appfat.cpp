@@ -6,7 +6,12 @@
 
 #include <config.h>
 
+#include <SDL.h>
 #include <fmt/format.h>
+
+#ifdef USE_SDL1
+#include "utils/sdl2_to_1_2_backports.h"
+#endif
 
 #include "diablo.h"
 #include "multi.h"
@@ -44,14 +49,14 @@ void FreeDlg()
 	SNetDestroy();
 }
 
-[[noreturn]] void DisplayFatalErrorAndExit(std::string_view title, std::string_view body)
+} // namespace
+
+void DisplayFatalErrorAndExit(std::string_view title, std::string_view body)
 {
 	FreeDlg();
 	UiErrorOkDialog(title, body);
 	diablo_quit(1);
 }
-
-} // namespace
 
 void app_fatal(std::string_view str)
 {

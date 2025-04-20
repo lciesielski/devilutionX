@@ -13,11 +13,11 @@
 #include <optional>
 #include <string>
 
+#include <Aulib/Stream.h>
 #include <SDL.h>
 #include <expected.hpp>
 
 #include "engine/assets.hpp"
-#include "init.h"
 #include "options.h"
 #include "utils/log.hpp"
 #include "utils/math.h"
@@ -150,6 +150,26 @@ int CapVolume(int volume)
 	return std::clamp(volume, VOLUME_MIN, VOLUME_MAX);
 }
 
+void OptionAudioChanged()
+{
+	effects_cleanup_sfx();
+	music_stop();
+	snd_deinit();
+	snd_init();
+	music_start(TMUSIC_INTRO);
+	if (gbRunGame)
+		sound_init();
+	else
+		ui_sound_init();
+}
+
+const auto OptionChangeSampleRate = (GetOptions().Audio.sampleRate.SetValueChangedCallback(OptionAudioChanged), true);
+const auto OptionChangeChannels = (GetOptions().Audio.channels.SetValueChangedCallback(OptionAudioChanged), true);
+const auto OptionChangeBufferSize = (GetOptions().Audio.bufferSize.SetValueChangedCallback(OptionAudioChanged), true);
+const auto OptionChangeResamplingQuality = (GetOptions().Audio.resamplingQuality.SetValueChangedCallback(OptionAudioChanged), true);
+const auto OptionChangeResampler = (GetOptions().Audio.resampler.SetValueChangedCallback(OptionAudioChanged), true);
+const auto OptionChangeDevice = (GetOptions().Audio.device.SetValueChangedCallback(OptionAudioChanged), true);
+
 } // namespace
 
 void ClearDuplicateSounds()
@@ -176,7 +196,7 @@ void snd_play_snd(TSnd *pSnd, int lVolume, int lPan)
 			return;
 	}
 
-	sound->PlayWithVolumeAndPan(lVolume, *sgOptions.Audio.soundVolume, lPan);
+	sound->PlayWithVolumeAndPan(lVolume, *GetOptions().Audio.soundVolume, lPan);
 	pSnd->start_tc = tc;
 }
 
@@ -206,17 +226,17 @@ TSnd::~TSnd()
 
 void snd_init()
 {
-	sgOptions.Audio.soundVolume.SetValue(CapVolume(*sgOptions.Audio.soundVolume));
-	gbSoundOn = *sgOptions.Audio.soundVolume > VOLUME_MIN;
+	GetOptions().Audio.soundVolume.SetValue(CapVolume(*GetOptions().Audio.soundVolume));
+	gbSoundOn = *GetOptions().Audio.soundVolume > VOLUME_MIN;
 	sgbSaveSoundOn = gbSoundOn;
 
-	sgOptions.Audio.musicVolume.SetValue(CapVolume(*sgOptions.Audio.musicVolume));
-	gbMusicOn = *sgOptions.Audio.musicVolume > VOLUME_MIN;
+	GetOptions().Audio.musicVolume.SetValue(CapVolume(*GetOptions().Audio.musicVolume));
+	gbMusicOn = *GetOptions().Audio.musicVolume > VOLUME_MIN;
 
 	// Initialize the SDL_audiolib library. Set the output sample rate to
 	// 22kHz, the audio format to 16-bit signed, use 2 output channels
 	// (stereo), and a 2KiB output buffer.
-	if (!Aulib::init(*sgOptions.Audio.sampleRate, AUDIO_S16, *sgOptions.Audio.channels, *sgOptions.Audio.bufferSize, *sgOptions.Audio.device)) {
+	if (!Aulib::init(*GetOptions().Audio.sampleRate, AUDIO_S16, *GetOptions().Audio.channels, *GetOptions().Audio.bufferSize, *GetOptions().Audio.device)) {
 		LogError(LogCategory::Audio, "Failed to initialize audio (Aulib::init): {}", SDL_GetError());
 		return;
 	}
@@ -288,7 +308,7 @@ void music_start(_music_id nTrack)
 		return;
 	}
 
-	music.SetVolume(*sgOptions.Audio.musicVolume, VOLUME_MIN, VOLUME_MAX);
+	music.SetVolume(*GetOptions().Audio.musicVolume, VOLUME_MIN, VOLUME_MAX);
 	if (!diablo_is_focused())
 		music_mute();
 	if (!music.Play(/*numIterations=*/0)) {
@@ -312,24 +332,24 @@ void sound_disable_music(bool disable)
 int sound_get_or_set_music_volume(int volume)
 {
 	if (volume == 1)
-		return *sgOptions.Audio.musicVolume;
+		return *GetOptions().Audio.musicVolume;
 
-	sgOptions.Audio.musicVolume.SetValue(volume);
+	GetOptions().Audio.musicVolume.SetValue(volume);
 
 	if (music.IsLoaded())
-		music.SetVolume(*sgOptions.Audio.musicVolume, VOLUME_MIN, VOLUME_MAX);
+		music.SetVolume(*GetOptions().Audio.musicVolume, VOLUME_MIN, VOLUME_MAX);
 
-	return *sgOptions.Audio.musicVolume;
+	return *GetOptions().Audio.musicVolume;
 }
 
 int sound_get_or_set_sound_volume(int volume)
 {
 	if (volume == 1)
-		return *sgOptions.Audio.soundVolume;
+		return *GetOptions().Audio.soundVolume;
 
-	sgOptions.Audio.soundVolume.SetValue(volume);
+	GetOptions().Audio.soundVolume.SetValue(volume);
 
-	return *sgOptions.Audio.soundVolume;
+	return *GetOptions().Audio.soundVolume;
 }
 
 void music_mute()

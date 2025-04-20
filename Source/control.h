@@ -20,7 +20,6 @@
 
 #include "DiabloUI/text_input.hpp"
 #include "DiabloUI/ui_flags.hpp"
-#include "engine.h"
 #include "engine/displacement.hpp"
 #include "engine/point.hpp"
 #include "engine/rectangle.hpp"
@@ -176,6 +175,7 @@ void CheckChrBtns();
 void ReleaseChrBtns(bool addAllStatPoints);
 void DrawDurIcon(const Surface &out);
 void RedBack(const Surface &out);
+void DrawDeathText(const Surface &out);
 void DrawSpellBook(const Surface &out);
 void DrawGoldSplit(const Surface &out);
 void control_drop_gold(SDL_Keycode vkey);

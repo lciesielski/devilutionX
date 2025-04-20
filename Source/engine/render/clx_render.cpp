@@ -6,9 +6,11 @@
 #include "clx_render.hpp"
 
 #include <algorithm>
+#include <cstdint>
 
 #include "engine/point.hpp"
 #include "engine/render/blit_impl.hpp"
+#include "engine/surface.hpp"
 #include "utils/attributes.h"
 #include "utils/clx_decode.hpp"
 #include "utils/static_vector.hpp"
@@ -586,6 +588,11 @@ void ClxDrawTRN(const Surface &out, Point position, ClxSprite clx, const uint8_t
 	DoRenderBackwards(out, position, clx.pixelData(), clx.pixelDataSize(), clx.width(), clx.height(), BlitWithMap { trn });
 }
 
+void ClxDrawWithLightmap(const Surface &out, Point position, ClxSprite clx, const Lightmap &lightmap)
+{
+	DoRenderBackwards(out, position, clx.pixelData(), clx.pixelDataSize(), clx.width(), clx.height(), BlitWithLightmap { lightmap });
+}
+
 void ClxDrawBlended(const Surface &out, Point position, ClxSprite clx)
 {
 	DoRenderBackwards(out, position, clx.pixelData(), clx.pixelDataSize(), clx.width(), clx.height(), BlitBlended {});
@@ -594,6 +601,11 @@ void ClxDrawBlended(const Surface &out, Point position, ClxSprite clx)
 void ClxDrawBlendedTRN(const Surface &out, Point position, ClxSprite clx, const uint8_t *trn)
 {
 	DoRenderBackwards(out, position, clx.pixelData(), clx.pixelDataSize(), clx.width(), clx.height(), BlitBlendedWithMap { trn });
+}
+
+void ClxDrawBlendedWithLightmap(const Surface &out, Point position, ClxSprite clx, const Lightmap &lightmap)
+{
+	DoRenderBackwards(out, position, clx.pixelData(), clx.pixelDataSize(), clx.width(), clx.height(), BlitBlendedWithLightmap { lightmap });
 }
 
 void ClxDrawOutline(const Surface &out, uint8_t col, Point position, ClxSprite clx)

@@ -11,7 +11,9 @@
 #include <span>
 #include <string_view>
 
+#include "engine/clx_sprite.hpp"
 #include "items.h"
+#include "levels/dun_tile.hpp"
 #include "player.h"
 #include "quests.h"
 
@@ -35,6 +37,8 @@ enum _talker_id : uint8_t {
 	TOWN_COWFARM,
 	NUM_TOWNER_TYPES,
 };
+
+extern const char *const TownerLongNames[NUM_TOWNER_TYPES];
 
 struct Towner {
 	OptionalOwnedClxSpriteList ownedAnim;
@@ -67,7 +71,7 @@ struct Towner {
 	}
 	[[nodiscard]] Displacement getRenderingOffset() const
 	{
-		return { -CalculateWidth2(_tAnimWidth), 0 };
+		return { -CalculateSpriteTileCenterX(_tAnimWidth), 0 };
 	}
 };
 
@@ -89,7 +93,7 @@ void UpdateGirlAnimAfterQuestComplete();
 void UpdateCowFarmerAnimAfterQuestComplete();
 
 #ifdef _DEBUG
-bool DebugTalkToTowner(std::string_view targetName);
+bool DebugTalkToTowner(_talker_id type);
 #endif
 extern _speech_id QuestDialogTable[NUM_TOWNER_TYPES][MAXQUESTS];
 

@@ -1,7 +1,5 @@
 #include "controller_buttons.h"
 
-#include "plrctrls.h"
-
 namespace devilution {
 namespace {
 namespace controller_button_icon {
@@ -280,17 +278,17 @@ std::string_view ToXboxIcon(ControllerButton button)
 
 } // namespace
 
-std::string_view ToString(ControllerButton button)
+std::string_view ToString(GamepadLayout gamepadType, ControllerButton button)
 {
-	switch (GamepadType) {
-	case devilution::GamepadLayout::PlayStation:
+	switch (gamepadType) {
+	case GamepadLayout::PlayStation:
 		return ToPlayStationIcon(button);
-	case devilution::GamepadLayout::Nintendo:
+	case GamepadLayout::Nintendo:
 		return ToNintendoIcon(button);
-	case devilution::GamepadLayout::Xbox:
+	case GamepadLayout::Xbox:
 		return ToXboxIcon(button);
 	default:
-	case devilution::GamepadLayout::Generic:
+	case GamepadLayout::Generic:
 		return ToGenericButtonText(button);
 	}
 }
