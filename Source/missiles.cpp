@@ -2342,22 +2342,35 @@ void AddGolem(Missile &missile, AddMissileParameter &parameter)
 
 	int playerId = missile._misource;
 	Player &player = Players[playerId];
-	Monster &golem = Monsters[playerId];
+	Monster *golem = FindGolemForPlayer(player);
 
-	if (golem.position.tile != GolemHoldingCell && &player == MyPlayer)
-		KillMyGolem();
-
-	if (golem.position.tile == GolemHoldingCell) {
-		std::optional<Point> spawnPosition = FindClosestValidPosition(
-		    [start = missile.position.start](Point target) {
-			    return !IsTileOccupied(target) && LineClearMissile(start, target);
-		    },
-		    parameter.dst, 0, 5);
-
-		if (spawnPosition) {
-			SpawnGolem(player, golem, *spawnPosition, missile);
-		}
+	// Is Golem alive?
+	if (golem != nullptr) {
+		KillGolem(*golem);
+		return;
 	}
+
+	std::optional<Point> spawnPosition = FindClosestValidPosition(
+	    [start = missile.position.start](Point target) {
+		    return !IsTileOccupied(target) && LineClearMissile(start, target);
+	    },
+	    parameter.dst, 0, 5);
+
+	if (!spawnPosition)
+		return;
+
+	if (&player != MyPlayer)
+		return;
+
+	uint8_t spellLevel = static_cast<uint8_t>(missile._mispllvl);
+
+	// The command is only executed for the level owner, to prevent desyncs in multiplayer.
+	if (!MyPlayer->isLevelOwnedByLocalClient()) {
+		// If we are not the level owner, request the level owner to spawn the golem for us
+		NetSendCmdLocParam1(true, CMD_REQUESTSPAWNGOLEM, *spawnPosition, spellLevel);
+		return;
+	}
+	SpawnGolem(player, *spawnPosition, spellLevel);
 }
 
 void AddApocalypseBoom(Missile &missile, AddMissileParameter &parameter)
