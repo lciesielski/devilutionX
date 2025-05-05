@@ -4837,9 +4837,6 @@ std::string DebugSpawnUniqueItem(std::string itemName)
 	bool foundUnique = false;
 	int uniqueIndex = 0;
 	for (int j = 0, n = static_cast<int>(UniqueItems.size()); j < n; ++j) {
-		if (!IsUniqueAvailable(j))
-			break;
-
 		const std::string tmp = AsciiStrToLower(std::string_view(UniqueItems[j].UIName));
 		if (tmp.find(itemName) != std::string::npos) {
 			itemName = tmp;
