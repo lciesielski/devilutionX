@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
-#include <string_view>
+#include <vector>
 
 #include "appfat.h"
 #include "game_mode.hpp"
@@ -22,6 +22,8 @@
 #endif
 
 namespace devilution {
+
+std::vector<std::string> OverridePaths;
 
 #ifdef UNPACKED_MPQS
 std::optional<std::string> spawn_data_path;
@@ -76,9 +78,6 @@ bool FindMpqFile(std::string_view filename, MpqArchive **archive, uint32_t *file
 
 	// Iterate over archives in reverse order to prefer files from high priority archives
 	for (auto rit = MpqArchives.rbegin(); rit != MpqArchives.rend(); ++rit) {
-		int priority = rit->first;
-		if (!gbIsHellfire && priority >= 8000 && priority < 9000)
-			continue;
 		if (rit->second->GetFileNumber(fileHash, *fileNumber)) {
 			*archive = rit->second.get();
 			return true;
@@ -153,11 +152,13 @@ AssetRef FindAsset(std::string_view filename)
 
 	// Files in the `PrefPath()` directory can override MPQ contents.
 	{
-		const std::string path = paths::PrefPath() + relativePath;
-		result.directHandle = OpenOptionalRWops(path);
-		if (result.directHandle != nullptr) {
-			LogVerbose("Loaded MPQ file override: {}", path);
-			return result;
+		for (const auto &overridePath : OverridePaths) {
+			const std::string path = overridePath + relativePath;
+			result.directHandle = OpenOptionalRWops(path);
+			if (result.directHandle != nullptr) {
+				LogVerbose("Loaded MPQ file override: {}", path);
+				return result;
+			}
 		}
 	}
 
@@ -423,8 +424,6 @@ void LoadGameArchives()
 		}
 	}
 	hellfire_data_path = FindUnpackedMpqData(paths, "hellfire");
-	if (hellfire_data_path)
-		gbIsHellfire = true;
 	if (forceHellfire && !hellfire_data_path)
 		InsertCDDlg("hellfire");
 #else // !UNPACKED_MPQS
@@ -442,15 +441,11 @@ void LoadGameArchives()
 		}
 	}
 
-	if (HasHellfireMpq)
-		gbIsHellfire = true;
 	if (forceHellfire && !HasHellfireMpq)
 		InsertCDDlg("hellfire.mpq");
 	LoadMPQ(paths, "hfbard.mpq", 8110);
 	LoadMPQ(paths, "hfbarb.mpq", 8120);
 #endif
-	if (gbIsHellfire)
-		LoadHellfireArchives();
 }
 
 void LoadHellfireArchives()
@@ -471,6 +466,46 @@ void LoadHellfireArchives()
 
 	if (!hasMonk || !hasMusic || !hasVoice)
 		DisplayFatalErrorAndExit(_("Some Hellfire MPQs are missing"), _("Not all Hellfire MPQs were found.\nPlease copy all the hf*.mpq files."));
+}
+
+void UnloadModArchives()
+{
+	OverridePaths.clear();
+
+#ifndef UNPACKED_MPQS
+	for (auto it = MpqArchives.begin(); it != MpqArchives.end();) {
+		if ((it->first >= 8000 && it->first < 9000) || it->first >= 10000) {
+			it = MpqArchives.erase(it); // erase returns the next valid iterator
+		} else {
+			++it;
+		}
+	}
+#endif
+}
+
+void LoadModArchives(std::span<const std::string_view> modnames)
+{
+	std::string targetPath;
+	for (std::string_view modname : modnames) {
+		targetPath = StrCat(paths::PrefPath(), "mods" DIRECTORY_SEPARATOR_STR, modname, DIRECTORY_SEPARATOR_STR);
+		if (FileExists(targetPath)) {
+			OverridePaths.emplace_back(targetPath);
+		}
+		targetPath = StrCat(SDL_GetBasePath(), "mods" DIRECTORY_SEPARATOR_STR, modname, DIRECTORY_SEPARATOR_STR);
+		if (FileExists(targetPath)) {
+			OverridePaths.emplace_back(targetPath);
+		}
+	}
+	OverridePaths.emplace_back(paths::PrefPath());
+
+#ifndef UNPACKED_MPQS
+	int priority = 10000;
+	auto paths = GetMPQSearchPaths();
+	for (std::string_view modname : modnames) {
+		LoadMPQ(paths, StrCat("mods" DIRECTORY_SEPARATOR_STR, modname, ".mpq"), priority);
+		priority++;
+	}
+#endif
 }
 
 } // namespace devilution
