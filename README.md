@@ -6,8 +6,6 @@
 
 This is modified version of the [DevilutionX](https://github.com/diasurgical/DevilutionX) repository.
 
-[![Windows x64](https://github.com/lciesielski/devilutionX/actions/workflows/Windows_MSVC_x64.yml/badge.svg)](https://github.com/lciesielski/devilutionX/actions/workflows/Windows_MSVC_x64.yml?query=branch%3Amaster)
-
 ## What is changed ?
 
 Mainly addition of the `bifrost.cpp` and `bifrost.h`.<br>
