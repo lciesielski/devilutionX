@@ -317,8 +317,32 @@ std::string bifrost::getHighlightedObject()
 		//response += "\"target-obj\": " + std::to_string(object._otype) + ",\n";
 		response += "\"target-obj-door\": " + std::to_string(object.isDoor()) + ",\n";
 		response += "\"target-obj-barrel\": " + std::to_string(object.IsBarrel()) + ",\n";
-		//DOOR_OPEN = 1, DOOR_BLOCKED = 2 -> objects.cpp enum
-		response += "\"target-obj-door-opened\": " + std::to_string(object._oVar4 == 1 || object._oVar4 == 2) + ",\n";
+
+		int isDoorOpen = -1;
+		int isButcherDoor = -1;
+
+		if (object.isDoor()) {
+			// DOOR_OPEN = 1, DOOR_BLOCKED = 2 -> objects.cpp enum
+			isDoorOpen = object._oVar4 == 1 || object._oVar4 == 2;
+
+			const Player &myPlayer = *MyPlayer;
+
+			if (myPlayer.plrlevel == 2 && !myPlayer._pLvlChanging) {
+				for (int i = 0; i < MaxMonsters; i++) {
+					Monster &monster = Monsters[i];
+
+					if (!monster.isPlayerMinion()) {
+						if (std::string(monster.name()) == "The Butcher") {
+							isButcherDoor = monster.position.tile.ApproxDistance(object.position) <= 8;
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		response += "\"target-obj-door-opened\": " + std::to_string(isDoorOpen) + ",\n";
+		response += "\"target-obj-door-butcher\": " + std::to_string(isButcherDoor) + ",\n";
 	}
 	else
 	{
@@ -326,6 +350,7 @@ std::string bifrost::getHighlightedObject()
 		response += "\"target-obj-door\": -1,\n";
 		response += "\"target-obj-barrel\": -1,\n";
 		response += "\"target-obj-door-opened\": -1,\n";
+		response += "\"target-obj-door-butcher\": -1,\n";
 	}
 
 	return response;
