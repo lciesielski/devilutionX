@@ -3021,7 +3021,7 @@ bool IsRelativeMoveOK(const Monster &monster, Point position, Direction mdir)
 	return true;
 }
 
-bool IsMonsterAvalible(const MonsterData &monsterData)
+bool IsMonsterAvailable(const MonsterData &monsterData)
 {
 	if (monsterData.availability == MonsterAvailability::Never)
 		return false;
@@ -3327,7 +3327,7 @@ tl::expected<void, std::string> GetLevelMTypes()
 			int skeletonTypeCount = 0;
 			_monster_id skeltypes[NUM_MTYPES];
 			for (_monster_id skeletonType : SkeletonTypes) {
-				if (!IsMonsterAvalible(MonstersData[skeletonType]))
+				if (!IsMonsterAvailable(MonstersData[skeletonType]))
 					continue;
 
 				skeltypes[skeletonTypeCount++] = skeletonType;
@@ -3338,8 +3338,8 @@ tl::expected<void, std::string> GetLevelMTypes()
 		_monster_id typelist[MaxMonsters];
 
 		int nt = 0;
-		for (int i = MT_NZOMBIE; i < NUM_MTYPES; i++) {
-			if (!IsMonsterAvalible(MonstersData[i]))
+		for (size_t i = 0; i < MonstersData.size(); i++) {
+			if (!IsMonsterAvailable(MonstersData[i]))
 				continue;
 
 			typelist[nt++] = (_monster_id)i;
@@ -4452,7 +4452,7 @@ void MissToMonst(Missile &missile, Point position)
 
 	Point oldPosition = missile.position.tile;
 	monster.occupyTile(position, false);
-	monster.direction = static_cast<Direction>(missile._mimfnum);
+	monster.direction = missile.getDirection();
 	monster.position.tile = position;
 	M_StartStand(monster, monster.direction);
 	M_StartHit(monster, 0);
