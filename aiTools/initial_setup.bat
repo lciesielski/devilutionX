@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 REM Set base path relative to the current directory (dqnStaticData)
-set "BUILD_RELEASE_DIR=..\build\x64-Release"
+set "BUILD_RELEASE_DIR=..\build\x64-RelWithDebInfo"
 set "SAVES_BASE_DIR=%BUILD_RELEASE_DIR%\Saves"
 set "CONFIG_DIR=%BUILD_RELEASE_DIR%\Config"
 

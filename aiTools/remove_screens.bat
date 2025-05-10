@@ -2,7 +2,7 @@
 SETLOCAL ENABLEDELAYEDEXPANSION
 
 REM --- Configuration ---
-SET "TargetFolder=f:\AI\devilutionX\build\x64-Release\Saves"
+set "TargetFolder=..\build\x64-RelWithDebInfo"
 REM --- End Configuration ---
 
 ECHO ===============================================

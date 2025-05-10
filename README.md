@@ -16,7 +16,7 @@ Besides that, `devilutionx.exe` accepts new argument `--learning` which will for
 
 Since this is a fork I'm gonna piggyback on the [instructions](https://github.com/diasurgical/DevilutionX/blob/master/docs/building.md) of the original repository.<br>
 Build process has not changed, I'm using `Windows via Visual Studio` section with `Through Open->CMake in Visual Studio` option.<br>
-**Note:** Build against **x64-release**<br>
+**Note:** Build against **x64-RelWithDebInfo**<br>
 
 ## Setup Instructions
 
