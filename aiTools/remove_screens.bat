@@ -2,7 +2,7 @@
 SETLOCAL ENABLEDELAYEDEXPANSION
 
 REM --- Configuration ---
-set "TargetFolder=..\build\x64-RelWithDebInfo"
+set "TargetFolder=..\build\x64-RelWithDebInfo\Saves"
 REM --- End Configuration ---
 
 ECHO ===============================================
