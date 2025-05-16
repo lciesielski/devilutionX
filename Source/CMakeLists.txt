@@ -131,6 +131,8 @@ set(libdevilutionx_SRCS
   lua/modules/towners.cpp
   lua/repl.cpp
 
+  monsters/validation.cpp
+
   panels/charpanel.cpp
   panels/console.cpp
   panels/info_box.cpp
@@ -141,6 +143,8 @@ set(libdevilutionx_SRCS
 
   platform/locale.cpp
 
+  portals/validation.cpp
+
   qol/autopickup.cpp
   qol/chatlog.cpp
   qol/floatingnumbers.cpp
@@ -148,6 +152,8 @@ set(libdevilutionx_SRCS
   qol/monhealthbar.cpp
   qol/stash.cpp
   qol/xpbar.cpp
+
+  quests/validation.cpp
 
   storm/storm_net.cpp
   storm/storm_svid.cpp
