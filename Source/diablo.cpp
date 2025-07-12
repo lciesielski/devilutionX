@@ -166,6 +166,7 @@ bool gbGameLoopStartup;
 bool forceSpawn;
 bool forceDiablo;
 bool forceLearning;
+std::string bifrostPort;
 int sgnTimeoutCurs;
 bool gbShowIntro = true;
 /** To know if these things have been done when we get to the diablo_deinit() function */
@@ -1114,6 +1115,13 @@ void DiabloParseFlags(int argc, char **argv)
 			forceSpawn = true;
 		} else if (arg == "--learning") {
 			forceLearning = true;
+		} else if (arg == "--port") {
+			if (i + 1 == argc) {
+				PrintFlagRequiresArgument("--port");
+				diablo_quit(64);
+			}
+
+			bifrostPort = argv[++i];
 		} else if (arg == "--diablo") {
 			forceDiablo = true;
 		} else if (arg == "--hellfire") {
@@ -1193,7 +1201,7 @@ void ApplicationInit()
 	if (*GetOptions().Graphics.showFPS)
 		EnableFrameCount();
 
-	init_create_window();
+	init_create_window(bifrostPort);
 	was_window_init = true;
 
 	InitializeScreenReader();

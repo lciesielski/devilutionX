@@ -124,9 +124,11 @@ void init_cleanup()
 	NetClose();
 }
 
-void init_create_window()
+void init_create_window(const std::string &bifrostPort)
 {
-	if (!SpawnWindow(PROJECT_NAME))
+	std::string windowTitle = bifrostPort.empty() ? PROJECT_NAME : (std::string(PROJECT_NAME) + "-" + bifrostPort);
+
+	if (!SpawnWindow(windowTitle.c_str()))
 		app_fatal(_("Unable to create main window"));
 	dx_init();
 	gbActive = true;

@@ -34,7 +34,7 @@ bool AreExtraFontsOutOfDate(MpqArchive &archive);
 [[nodiscard]] bool AreExtraFontsOutOfDate();
 
 void init_cleanup();
-void init_create_window();
+void init_create_window(const std::string &bifrostPort);
 void MainWndProc(const SDL_Event &event);
 
 } // namespace devilution
