@@ -379,7 +379,7 @@ enum unique_base_item : int8_t {
 	UITYPE_LAZSTAFF,
 	UITYPE_BOVINE,
 	NUM_DEFAULT_UITYPES,
-	NUM_MAX_UITYPES = std::numeric_limits<int8_t>::max(),
+	NUM_MAX_UITYPES = (std::numeric_limits<int8_t>::max)(),
 	UITYPE_INVALID = -1,
 };
 

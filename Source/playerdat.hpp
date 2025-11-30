@@ -22,7 +22,7 @@ enum class HeroClass : uint8_t {
 	Bard,
 	Barbarian,
 
-	NUM_MAX_CLASSES = std::numeric_limits<uint8_t>::max(),
+	NUM_MAX_CLASSES = (std::numeric_limits<uint8_t>::max)(),
 
 	LAST = Barbarian,
 };

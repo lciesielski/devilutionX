@@ -91,6 +91,7 @@
 #include "utils/str_split.hpp"
 #include "utils/string_or_view.hpp"
 #include "utils/utf8.hpp"
+#include <utils/str_case.hpp>
 
 namespace devilution {
 
@@ -4854,7 +4855,7 @@ std::string DebugSpawnUniqueItem(std::string itemName)
 	if (!foundUnique) return "No unique item found!";
 
 	_item_indexes uniqueBaseIndex = IDI_GOLD;
-	for (std::underlying_type_t<_item_indexes> j = IDI_GOLD; j <= IDI_LAST; j++) {
+	for (std::underlying_type_t<_item_indexes> j = IDI_GOLD; j <= IDI_NUM_DEFAULT_ITEMS; j++) {
 		if (!IsItemAvailable(j))
 			continue;
 		if (AllItemsList[j].iItemId == uniqueItem.UIItemId) {

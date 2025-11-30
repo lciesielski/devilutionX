@@ -2177,12 +2177,12 @@ void InitKeymapActions()
 	    SDLK_KP_5,
 	    [] {
 		    ControllerActionHeld = GameActionType_PRIMARY_ACTION;
-		    LastMouseButtonAction = MouseActionType::None;
+		    LastPlayerAction = PlayerActionType::None;
 		    PerformPrimaryAction();
 	    },
 	    [] {
 		    ControllerActionHeld = GameActionType_NONE;
-		    LastMouseButtonAction = MouseActionType::None;
+		    LastPlayerAction = PlayerActionType::None;
 	    },
 	    CanPlayerTakeAction);
 	options.Keymapper.AddAction(
