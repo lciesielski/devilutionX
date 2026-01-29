@@ -205,8 +205,8 @@ sol::table LuaDevItemsModule(sol::state_view &lua)
 	sol::table table = lua.create_table();
 	LuaSetDocFn(table, "get", "() -> Item", "Get the currently selected item.", &DebugCmdGetItem);
 	LuaSetDocFn(table, "info", "()", "Show info of currently selected item.", &DebugCmdItemInfo);
-	LuaSetDocFn(table, "spawn", "(name: string)", "Attempt to generate an item.", &DebugSpawnItem);
-	LuaSetDocFn(table, "spawnUnique", "(name: string)", "Attempt to generate a unique item.", &DebugSpawnUniqueItem);
+	//LuaSetDocFn(table, "spawn", "(name: string)", "Attempt to generate an item.", &DebugSpawnItem);
+	//LuaSetDocFn(table, "spawnUnique", "(name: string)", "Attempt to generate a unique item.", &DebugSpawnUniqueItem);
 	return table;
 }
 
