@@ -26,8 +26,8 @@
 #include "levels/dun_tile.hpp"
 #include "levels/gendung.h"
 #include "multi.h"
-#include "playerdat.hpp"
-#include "spelldat.h"
+#include "tables/playerdat.hpp"
+#include "tables/spelldat.h"
 #include "utils/attributes.h"
 #include "utils/enum_traits.h"
 #include "utils/is_of.hpp"
@@ -899,6 +899,16 @@ public:
 		const Item &rightHandItem = InvBody[INVLOC_HAND_RIGHT];
 
 		return (type == leftHandItem._itype && leftHandItem._iStatFlag) || (type == rightHandItem._itype && rightHandItem._iStatFlag);
+	}
+
+	bool hasNoLife() const
+	{
+		return leveltype == DTYPE_TOWN ? false : _pHitPoints >> 6 <= 0;
+	}
+
+	bool hasNoMana() const
+	{
+		return _pMana >> 6 <= 0;
 	}
 };
 

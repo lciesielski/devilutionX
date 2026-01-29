@@ -10,8 +10,10 @@
 #include <config.h>
 
 #include "appfat.h"
+#include "effects.h"
 #include "engine/assets.hpp"
 #include "lua/modules/audio.hpp"
+#include "lua/modules/floatingnumbers.hpp"
 #include "lua/modules/hellfire.hpp"
 #include "lua/modules/i18n.hpp"
 #include "lua/modules/items.hpp"
@@ -19,8 +21,11 @@
 #include "lua/modules/monsters.hpp"
 #include "lua/modules/player.hpp"
 #include "lua/modules/render.hpp"
+#include "lua/modules/system.hpp"
 #include "lua/modules/towners.hpp"
+#include "monster.h"
 #include "options.h"
+#include "player.h"
 #include "plrmsg.h"
 #include "utils/console.h"
 #include "utils/log.hpp"
@@ -200,6 +205,9 @@ sol::environment CreateLuaSandbox()
 
 	sandbox["require"] = lua["requireGen"](sandbox, CurrentLuaState->commonPackages, LuaLoadScriptFromAssets);
 
+	// Expose commonly used enums globally for mods
+	sandbox["SfxID"] = lua["SfxID"];
+
 	return sandbox;
 }
 
@@ -228,6 +236,13 @@ void LuaReloadActiveMods()
 	for (const tl::function_ref<void()> handler : IsModChangeHandlers) {
 		handler();
 	}
+
+	// Reload sound effects in case a mod archive overrides effects.tsv
+	effects_cleanup_sfx();
+	if (gbRunGame)
+		sound_init();
+	else
+		ui_sound_init();
 
 	// Reload game data (this can probably be done later in the process to avoid having to reload it)
 	LoadTextData();
@@ -275,6 +290,8 @@ void LuaInitialize()
 	    "devilutionx.render", LuaRenderModule(lua),
 	    "devilutionx.towners", LuaTownersModule(lua),
 	    "devilutionx.hellfire", LuaHellfireModule(lua),
+	    "devilutionx.system", LuaSystemModule(lua),
+	    "devilutionx.floatingnumbers", LuaFloatingNumbersModule(lua),
 	    "devilutionx.message", [](std::string_view text) { EventPlrMsg(text, UiFlags::ColorRed); },
 	    // This package is loaded without a sandbox:
 	    "inspect", RunScript(/*env=*/std::nullopt, "inspect", /*optional=*/false));
@@ -297,7 +314,8 @@ void LuaShutdown()
 	CurrentLuaState = std::nullopt;
 }
 
-void LuaEvent(std::string_view name)
+template <typename... Args>
+void CallLuaEvent(std::string_view name, Args &&...args)
 {
 	if (!CurrentLuaState.has_value()) {
 		return;
@@ -309,7 +327,42 @@ void LuaEvent(std::string_view name)
 		return;
 	}
 	const sol::protected_function fn = trigger->as<sol::protected_function>();
-	SafeCallResult(fn(), /*optional=*/true);
+	SafeCallResult(fn(std::forward<Args>(args)...), /*optional=*/true);
+}
+
+void LuaEvent(std::string_view name)
+{
+	CallLuaEvent(name);
+}
+
+void LuaEvent(std::string_view name, const Player *player, int arg1, int arg2)
+{
+	CallLuaEvent(name, player, arg1, arg2);
+}
+
+void LuaEvent(std::string_view name, const Monster *monster, int arg1, int arg2)
+{
+	CallLuaEvent(name, monster, arg1, arg2);
+}
+
+void LuaEvent(std::string_view name, const Player *player, uint32_t arg1)
+{
+	CallLuaEvent(name, player, arg1);
+}
+
+void LuaEvent(std::string_view name, std::string_view arg)
+{
+	if (!CurrentLuaState.has_value()) {
+		return;
+	}
+
+	const auto trigger = CurrentLuaState->events.traverse_get<std::optional<sol::object>>(name, "trigger");
+	if (!trigger.has_value() || !trigger->is<sol::protected_function>()) {
+		LogError("events.{}.trigger is not a function", name);
+		return;
+	}
+	const sol::protected_function fn = trigger->as<sol::protected_function>();
+	SafeCallResult(fn(arg), /*optional=*/true);
 }
 
 sol::state &GetLuaState()
