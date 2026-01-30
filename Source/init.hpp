@@ -25,7 +25,6 @@ namespace devilution {
 
 /** True if the game is the current active window */
 extern bool gbActive;
-extern bool gbIsLearning;
 
 [[nodiscard]] bool IsDevilutionXMpqOutOfDate();
 
