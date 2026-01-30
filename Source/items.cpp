@@ -4789,8 +4789,8 @@ std::string DebugSpawnItem(std::string itemName)
 {
 	if (ActiveItemCount >= MAXITEMS) return "No space to generate the item!";
 
-	const int max_time = 10000;
-	const int max_iter = 10000000;
+	const int max_time = 30000;
+	const int max_iter = 100000000;
 
 	AsciiStrToLower(itemName);
 
