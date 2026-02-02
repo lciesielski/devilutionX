@@ -2464,17 +2464,9 @@ void Player::_addExperience(uint32_t experience, int levelDelta)
 
 void AddPlrMonstExper(int lvl, unsigned exp, char pmask)
 {
-	unsigned totplrs = 0;
-	for (size_t i = 0; i < Players.size(); i++) {
-		if (((1 << i) & pmask) != 0) {
-			totplrs++;
-		}
-	}
-
-	if (totplrs != 0) {
-		const unsigned e = exp / totplrs;
-		if ((pmask & (1 << MyPlayerId)) != 0)
-			MyPlayer->addExperience(e, lvl);
+	// Give full experience to local player if they're on the same floor
+	if (MyPlayer->plractive && MyPlayer->plrlevel == currlevel && !MyPlayer->_pLvlChanging) {
+		MyPlayer->addExperience(exp, lvl);
 	}
 }
 
