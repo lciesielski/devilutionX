@@ -460,8 +460,8 @@ void LoadPlayer(LoadHelper &file, Player &player)
 		file.Skip<uint8_t>();
 	// These spells are unavailable in Diablo as learnable spells
 	if (!gbIsHellfire) {
-		player._pSplLvl[static_cast<uint8_t>(SpellID::Apocalypse)] = 0;
-		player._pSplLvl[static_cast<uint8_t>(SpellID::Nova)] = 0;
+		//player._pSplLvl[static_cast<uint8_t>(SpellID::Apocalypse)] = 0;
+		//player._pSplLvl[static_cast<uint8_t>(SpellID::Nova)] = 0;
 	}
 
 	file.Skip(7); // Alignment
