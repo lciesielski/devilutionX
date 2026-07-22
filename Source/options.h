@@ -29,6 +29,7 @@
 #include "controls/controller_buttons.h"
 #include "engine/size.hpp"
 #include "engine/sound_defs.hpp"
+#include "mods/mod_identity.h"
 #include "pack.h"
 #include "quick_messages.hpp"
 #include "utils/enum_traits.h"
@@ -487,6 +488,8 @@ struct AudioOptions : OptionCategoryBase {
 
 	/** @brief Movie and SFX volume. */
 	OptionEntryInt<int> soundVolume;
+	/** @brief Accessibility / navigation cues volume. */
+	OptionEntryInt<int> audioCuesVolume;
 	/** @brief Music volume. */
 	OptionEntryInt<int> musicVolume;
 	/** @brief Player emits sound when walking. */
@@ -633,6 +636,8 @@ struct GameplayOptions : OptionCategoryBase {
 	OptionEntryInt<int> numRejuPotionPickup;
 	/** @brief Number of Full Rejuvenating potions to pick up automatically */
 	OptionEntryInt<int> numFullRejuPotionPickup;
+	/** @brief Use visual grid-based store UI instead of text-based menus. */
+	OptionEntryBoolean visualStoreUI;
 
 	/**
 	 * @brief If loading takes less than this value, skips displaying the loading screen.
@@ -846,8 +851,16 @@ private:
 		ModEntry(const ModEntry &) = delete;
 
 		ModEntry(std::string_view name);
+		// `name` is the mod id (MPQ filename stem / INI key). `displayName` and `description`
+		// come from the mod's `manifest.ini` (falling back to `name` and empty), and are what
+		// the settings UI shows via `enabled`.
 		std::string name;
+		std::string displayName;
+		std::string description;
 		OptionEntryBoolean enabled;
+
+	private:
+		ModEntry(std::string_view name, const ModManifest &manifest);
 	};
 
 	std::forward_list<ModEntry> &GetModEntries();

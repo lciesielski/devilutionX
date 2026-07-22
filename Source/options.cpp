@@ -75,7 +75,7 @@ void DiscoverMods()
 	std::unordered_set<std::string> modNames = { "clock", "adria_refills_mana", "Floating Numbers - Damage", "Floating Numbers - XP" };
 
 	if (HaveHellfire()) {
-		modNames.insert("Hellfire");
+		modNames.insert("hf");
 	}
 
 	// Check if the mods directory exists.
@@ -118,7 +118,7 @@ void DiscoverMods()
 
 std::optional<Ini> ini;
 
-#if defined(__ANDROID__) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE == 1)
+#if (defined(__ANDROID__) && !defined(TERMUX)) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE == 1)
 constexpr OptionEntryFlags OnlyIfSupportsWindowed = OptionEntryFlags::Invisible;
 #else
 constexpr OptionEntryFlags OnlyIfSupportsWindowed = OptionEntryFlags::None;
@@ -185,8 +185,9 @@ void SaveIni()
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 bool HardwareCursorDefault()
 {
-#if defined(__ANDROID__) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE == 1)
+#if defined(__ANDROID__) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE == 1) || defined(__EMSCRIPTEN__)
 	// See https://github.com/diasurgical/devilutionX/issues/2502
+	// Emscripten: Software cursor works better in browsers
 	return false;
 #else
 	return HardwareCursorSupported();
@@ -510,6 +511,7 @@ std::vector<OptionEntryBase *> HellfireOptions::GetEntries()
 AudioOptions::AudioOptions()
     : OptionCategoryBase("Audio", N_("Audio"), N_("Audio Settings"))
     , soundVolume("Sound Volume", OptionEntryFlags::Invisible, "Sound Volume", "Movie and SFX volume.", VOLUME_MAX)
+    , audioCuesVolume("Audio Cues Volume", OptionEntryFlags::Invisible, "Audio Cues Volume", "Navigation audio cues volume.", VOLUME_MAX)
     , musicVolume("Music Volume", OptionEntryFlags::Invisible, "Music Volume", "Music Volume.", VOLUME_MAX)
     , walkingSound("Walking Sound", OptionEntryFlags::None, N_("Walking Sound"), N_("Player emits sound when walking."), true)
     , autoEquipSound("Auto Equip Sound", OptionEntryFlags::None, N_("Auto Equip Sound"), N_("Automatically equipping items on pickup emits the equipment sound."), false)
@@ -525,6 +527,7 @@ std::vector<OptionEntryBase *> AudioOptions::GetEntries()
 	// clang-format off
 	return {
 		&soundVolume,
+		&audioCuesVolume,
 		&musicVolume,
 		&walkingSound,
 		&autoEquipSound,
@@ -736,10 +739,16 @@ SDL_AudioDeviceID OptionEntryAudioDevice::id() const
 
 GraphicsOptions::GraphicsOptions()
     : OptionCategoryBase("Graphics", N_("Graphics"), N_("Graphics Settings"))
-    , fullscreen("Fullscreen", OnlyIfSupportsWindowed | OptionEntryFlags::CantChangeInGame | OptionEntryFlags::RecreateUI, N_("Fullscreen"), N_("Display the game in windowed or fullscreen mode."), true)
+    , fullscreen("Fullscreen", OnlyIfSupportsWindowed | OptionEntryFlags::CantChangeInGame | OptionEntryFlags::RecreateUI, N_("Fullscreen"), N_("Display the game in windowed or fullscreen mode."),
+#ifdef __EMSCRIPTEN__
+          false // Default to windowed mode for browser
+#else
+          true
+#endif
+          )
 #if !defined(USE_SDL1) || defined(__3DS__)
     , fitToScreen("Fit to Screen", OptionEntryFlags::CantChangeInGame | OptionEntryFlags::RecreateUI, N_("Fit to Screen"), N_("Automatically adjust the game window to your current desktop screen aspect ratio and resolution."),
-#ifdef __DJGPP__
+#if defined(__DJGPP__) || defined(__EMSCRIPTEN__)
           false
 #else
           true
@@ -868,6 +877,7 @@ GameplayOptions::GameplayOptions()
     , numFullManaPotionPickup("Full Mana Potion Pickup", OptionEntryFlags::None, N_("Full Mana Potion Pickup"), N_("Number of Full Mana potions to pick up automatically."), 0, { 0, 1, 2, 4, 8, 16 })
     , numRejuPotionPickup("Rejuvenation Potion Pickup", OptionEntryFlags::None, N_("Rejuvenation Potion Pickup"), N_("Number of Rejuvenation potions to pick up automatically."), 0, { 0, 1, 2, 4, 8, 16 })
     , numFullRejuPotionPickup("Full Rejuvenation Potion Pickup", OptionEntryFlags::None, N_("Full Rejuvenation Potion Pickup"), N_("Number of Full Rejuvenation potions to pick up automatically."), 0, { 0, 1, 2, 4, 8, 16 })
+    , visualStoreUI("Visual Store UI", OptionEntryFlags::None, N_("Visual Store UI"), N_("Use visual grid-based store interface instead of text-based menus. Both store and inventory panels open together."), false)
     , skipLoadingScreenThresholdMs("Skip loading screen threshold, ms", OptionEntryFlags::Invisible, "", "", 0)
 {
 }
@@ -887,6 +897,7 @@ std::vector<OptionEntryBase *> GameplayOptions::GetEntries()
 		&testBarbarian,
 		&experienceBar,
 		&showItemGraphicsInStores,
+		&visualStoreUI,
 		&showHealthValues,
 		&showManaValues,
 		&showMultiplayerPartyInfo,
@@ -1026,6 +1037,7 @@ void OptionEntryLanguageCode::CheckLanguagesAreInitialized() const
 	languages.emplace_back("bg", "Български");
 	languages.emplace_back("ru", "Русский");
 	languages.emplace_back("uk", "Українська");
+	languages.emplace_back("he", "עברית");
 
 	if (haveExtraFonts) {
 		languages.emplace_back("ja", "日本語");
@@ -1447,16 +1459,10 @@ void PadmapperOptions::Action::UpdateValueDescription() const
 
 std::string_view PadmapperOptions::Action::Shorten(std::string_view buttonName) const
 {
-	size_t index = 0;
-	size_t chars = 0;
-	while (index < buttonName.size()) {
-		if (!IsTrailUtf8CodeUnit(buttonName[index]))
-			chars++;
-		if (chars == 3)
-			break;
-		index++;
-	}
-	return std::string_view(buttonName.data(), index);
+	auto it = Utf8CodePoints(buttonName).begin();
+	const auto end = Utf8CodePoints(buttonName).end();
+	for (int i = 0; i < 3 && it != end; ++i, ++it) { }
+	return { buttonName.data(), static_cast<size_t>(it.data() - buttonName.data()) };
 }
 
 std::string_view PadmapperOptions::Action::GetValueDescription() const
@@ -1601,7 +1607,7 @@ void ModOptions::RemoveModEntry(const std::string &modName)
 void ModOptions::SetHellfireEnabled(bool enableHellfire)
 {
 	for (auto &modEntry : GetModEntries()) {
-		if (modEntry.name == "Hellfire") {
+		if (modEntry.name == "hf") {
 			modEntry.enabled.SetValue(enableHellfire);
 			break;
 		}
@@ -1623,9 +1629,35 @@ std::forward_list<ModOptions::ModEntry> &ModOptions::GetModEntries()
 	return newModEntries;
 }
 
+namespace {
+// The description shown in the mod settings panel. Prefer the manifest's own description;
+// otherwise synthesise one from whatever metadata the manifest provides (version, author).
+std::string BuildModDescription(const ModManifest &manifest)
+{
+	if (!manifest.description.empty())
+		return manifest.description;
+	const bool hasVersion = !manifest.version.empty();
+	const bool hasAuthor = !manifest.author.empty();
+	if (hasVersion && hasAuthor)
+		return fmt::format(fmt::runtime(_("Version {:s} by {:s}")), manifest.version, manifest.author);
+	if (hasVersion)
+		return fmt::format(fmt::runtime(_("Version {:s}")), manifest.version);
+	if (hasAuthor)
+		return fmt::format(fmt::runtime(_("By {:s}")), manifest.author);
+	return {};
+}
+} // namespace
+
 ModOptions::ModEntry::ModEntry(std::string_view name)
+    : ModEntry(name, ReadModManifestByName(name))
+{
+}
+
+ModOptions::ModEntry::ModEntry(std::string_view name, const ModManifest &manifest)
     : name(name)
-    , enabled(this->name, OptionEntryFlags::RecreateUI, this->name.c_str(), "", false)
+    , displayName(manifest.name.empty() ? std::string(name) : manifest.name)
+    , description(BuildModDescription(manifest))
+    , enabled(this->name, OptionEntryFlags::RecreateUI, this->displayName.c_str(), this->description.c_str(), false)
 {
 }
 
