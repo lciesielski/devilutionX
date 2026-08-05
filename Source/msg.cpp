@@ -692,6 +692,8 @@ const std::byte *DeltaImportSpawnedMonsters(const std::byte *src, const std::byt
 		DSpawnedMonster spawnedMonster;
 		memcpy(&spawnedMonster, src, sizeof(DSpawnedMonster));
 		src += sizeof(DSpawnedMonster);
+		if (monsterId >= MaxMonsters || spawnedMonster.typeIndex >= MaxLvlMTypes)
+			return nullptr;
 		spawnedMonsters.emplace(monsterId, spawnedMonster);
 	}
 
@@ -2613,6 +2615,8 @@ size_t OnSpawnMonster(const TCmdSpawnMonster &message, const Player &player)
 
 	auto typeIndex = static_cast<size_t>(Swap16LE(message.typeIndex));
 	auto monsterId = static_cast<size_t>(Swap16LE(message.monsterId));
+	if (typeIndex >= MaxLvlMTypes || monsterId >= MaxMonsters)
+		return sizeof(message);
 	const uint8_t golemOwnerPlayerId = message.golemOwnerPlayerId;
 	if (golemOwnerPlayerId >= Players.size()) {
 		return sizeof(message);
